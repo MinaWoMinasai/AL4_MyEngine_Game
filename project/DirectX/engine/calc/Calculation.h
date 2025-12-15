@@ -98,6 +98,14 @@ bool IsCollision(const AABB& aabb, const Sphere& sphere);
 // 直方体と線の当たり判定
 bool IsCollision(const AABB& aabb, const Segment& segmrnt);
 
+float DistancePointToSegment(const Vector3& point, const Segment& segment);
+
+// 線と球の当たり判定
+bool IsCollision(const Segment& segment, const Sphere& sphere);
+
+// カプセルと線の球の当たり判定
+bool IsCollision(const Segment& seg, const Sphere& sphere, float capsuleRadius);
+
 //* 演算子オーバーロード
 //---------------------------------------------
 
@@ -131,3 +139,6 @@ Vector3 ScreenToWorld3D(const Vector2& screenPos, const Matrix4x4& viewMatrix, c
 	float windowWidth, float windowHeight, float distanceFromCamera);
 
 Vector3 RandomUnitVector();
+
+// ワールドトランスフォームの初期化
+Transform InitWorldTransform();

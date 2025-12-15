@@ -215,3 +215,9 @@ struct TornadoParticle {
 	float maxHeight; // ← 無限ループ用
 	Vector4 color;
 };
+
+enum AxisXYZ {
+	X,
+	Y,
+	Z,
+};
