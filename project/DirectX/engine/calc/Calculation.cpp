@@ -907,6 +907,40 @@ bool IsCollision(const AABB& aabb, const Segment& segment) {
 	return true;
 }
 
+float DistancePointToSegment(const Vector3& point, const Segment& segment) {
+	Vector3 a = segment.origin;
+	Vector3 b = segment.origin + segment.diff;
+
+	Vector3 ab = b - a;
+	Vector3 ap = point - a;
+
+	float abLen2 = Dot(ab, ab);
+	if (abLen2 == 0.0f) {
+		// 線分の長さが0の場合は始点との距離
+		return Length(point - a);
+	}
+
+	float t = Dot(ap, ab) / abLen2;
+	t = std::clamp(t, 0.0f, 1.0f);
+
+	Vector3 closest = a + ab * t;
+	return Length(point - closest);
+}
+
+bool IsCollision(const Segment& segment, const Sphere& sphere) {
+
+	float dist = DistancePointToSegment(sphere.center, segment);
+
+	return dist <= sphere.radius;
+}
+
+bool IsCollision(const Segment& seg, const Sphere& sphere, float capsuleRadius) {
+
+	float dist = DistancePointToSegment(sphere.center, seg);
+
+	return dist <= (sphere.radius + capsuleRadius);
+}
+
 Vector3 RandomUnitVector() {
 	float theta = Rand(0.0f, 2.0f * float(M_PI));   // 0〜2π の角度
 	float phi = acosf(Rand(-1.0f, 1.0f));           // -1〜1を使ってφを決定
@@ -916,4 +950,13 @@ Vector3 RandomUnitVector() {
 	dir.y = sinf(phi) * sinf(theta);
 	dir.z = cosf(phi);
 	return dir; // すでに正規化済み
+}
+
+Transform InitWorldTransform()
+{
+	Transform worldTransform;
+	worldTransform.scale = { 1.0f, 1.0f, 1.0f };
+	worldTransform.rotate = { 0.0f, 0.0f, 0.0f };
+	worldTransform.translate = { 0.0f, 0.0f, 0.0f };
+	return worldTransform;
 }
