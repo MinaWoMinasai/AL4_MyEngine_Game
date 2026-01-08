@@ -46,6 +46,12 @@ public:
 	const Segment& GetSegment() const { return segment_; }
 	float GetCapsuleRadius() const { return capsuleRadius_; }
 
+	float GetHitPower() const { return hitPower_; }
+	void SetHitPower(float power) { hitPower_ = power; }
+
+	uint32_t GetDamage() { return damage_; };
+	void SetDamage(const uint32_t& damage) { damage_ = damage; }
+
 private:
 	// 衝突半径
 	float radius_ = 0.8f;
@@ -62,4 +68,9 @@ private:
 
 	Segment segment_;
 	float capsuleRadius_ = 0.0f;
+	float hitPower_ = 1.0f;
+
+	// 与えるダメージ
+	uint32_t damage_;
+
 };

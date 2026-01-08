@@ -10,7 +10,7 @@ class PlayerBullet : public Collider {
 
 public:
 
-	void Initialize(const Vector3& position, const Vector3& velocity);
+	void Initialize(const Vector3& position, const Vector3& velocity, const uint32_t& damage);
 
 	void Update();
 
@@ -32,6 +32,7 @@ public:
 	void SetWorldPosition(const Vector3& pos) {
 		worldTransform_.translate = pos;
 		object_->SetTransform(worldTransform_);
+		object_->Update();
 	}
 
 	AABB GetAABB();

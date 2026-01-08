@@ -1,11 +1,24 @@
 #pragma once
+#define NOMINMAX
 #include "Collider.h"
 #include "EnemyBullet.h"
 #include <Windows.h>
 #include <algorithm>
 #include "Object3d.h"
+#include "Sprite.h"
+
+struct EnemyParticle {
+	std::unique_ptr<Object3d> object;
+	Vector3 velocity;
+	Vector3 rotateSpeed;
+	float timer;
+	float lifeTime;
+
+	float startAlpha;
+};
 
 class Player;
+class GameScene;
 
 class Enemy : public Collider {
 
@@ -26,7 +39,7 @@ public:
 	/// <summary>
 	/// 初期化
 	/// </summary>
-	void Initialize(Object3d* object, const Vector3& position);
+	void Initialize(Object3d* object, const Vector3& position, GameScene* gameScene);
 
 	/// <summary>
 	/// 更新
@@ -39,16 +52,21 @@ public:
 	void Draw();
 
 	/// <summary>
+	/// スプライト描画
+	/// </summary>
+	void DrawSprite();
+
+	/// <summary>
 	/// 弾発射
 	/// </summary>
-	void Fire(bool canReflect = false);
+	void Fire();
 
 	/// <summary>
 	/// 散弾発射
 	/// </summary>
 	/// <param name="spreadAngle"></param>
 	/// <param name="canReflect"></param>
-	void ShotgunFire(int bulletCount, float spreadAngleDeg, bool canReflect, float bulletSpeed = 0.3f, bool randam = true);
+	void ShotgunFire(int bulletCount, float spreadAngleDeg, float bulletSpeed = 0.3f, bool randam = true);
 
 	/// <summary>
 	///
@@ -66,6 +84,13 @@ public:
 
 	// 自キャラのセッター
 	void SetPlayer(Player* player) { player_ = player; }
+	
+	// セッター
+	void SetWorldPosition(const Vector3& pos) {
+		worldTransform_.translate = pos;
+		object_->SetTransform(worldTransform_);
+		object_->Update();
+	}
 
 	//----------------------
 	// 定数
@@ -98,6 +123,33 @@ public:
 	Vector3 EvadeBullets();
 	void UpdateAIState();
 
+	AABB GetAABB();
+
+	Vector3 GetDir() { return dir_; }
+
+	Segment MakeForwardRay(float length) const;
+
+	bool IsBlockNearByRay();
+
+	Vector3 WallAvoidByRay();
+	
+	float ScoreDir(const Vector3& dir);
+
+	Segment MakeRayToPlayer() const;
+
+	bool HitPlayerByRay(const Segment& ray);
+
+	bool HasLineOfSightToPlayer();
+
+	Vector3 GetMove() { return velocity_; }
+
+	void Die(); // ← プレイヤー消滅
+
+	// 演出終了か
+	bool isFinished();
+
+	bool IsDead() const { return isDead_; }
+
 private:
 	// ワールド変換データ
 	Transform worldTransform_;
@@ -119,12 +171,9 @@ private:
 	// 最初の弾までの時間
 	uint32_t time_ = 60;
 
-	// 体力
-	uint32_t hp = 20;
-	
-	bool isDead_ = false;
+	//bool isDead_ = false;
 
-	float radius_ = 3.0f;
+	float radius_ = 2.8f;
 
 	std::string behaviorName_;
 	// 弾のクールダウン
@@ -141,4 +190,43 @@ private:
 	float wanderChangeTimer = 1.0f;
 	Vector3 evadeVec = {0.0f, 0.0f, 0.0f};
 	Vector3 wanderVec = {0.0f, 0.0f, 0.0f};
+
+	// キャラクターの当たり判定サイズ
+	static inline const float kWidth = 3.2f;
+	static inline const float kHeight = 3.2f;
+	
+	Vector3 dir_;
+
+	GameScene* gameScene_ = nullptr;
+	
+	bool isWallFollowing_ = false;
+	float wallFollowTimer_ = 0.0f;
+	Vector3 wallFollowDir_;
+
+	// 射撃感覚タイマー
+	float kFireTimerMax_ = 0.15f;
+	float fireTimer_ = 0.0f;
+	
+	Vector3 velocity_{ 0, 0, 0 };
+
+	float maxSpeed_ = 0.30f;
+	float accel_ = 0.08f;
+	float friction_ = 0.90f;
+	
+	std::unique_ptr<Sprite> bossHpFont;
+	std::unique_ptr<Sprite> sprite;
+	std::unique_ptr<Sprite> bossHpRed;
+
+	int hp_ = 200;
+
+	bool isDead_ = false;
+
+	bool isExploding_ = false;
+
+	std::vector<EnemyParticle> particles_;
+
+private:
+	void SpawnParticles();
+	void UpdateParticles(float deltaTime = 1.0f / 60.0f);
+	const float deltaTime = 1.0f / 60.0f;
 };

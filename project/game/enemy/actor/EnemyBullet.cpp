@@ -4,7 +4,7 @@ void EnemyBullet::Initialize(const Vector3& position, const Vector3& velocity) {
 
 	object_ = std::make_unique<Object3d>();
 	object_->Initialize();
-	object_->SetModel("plane.obj");
+	object_->SetModel("enemyBullet.obj");
 
 	worldTransform_ = InitWorldTransform();
 	worldTransform_.translate = position;

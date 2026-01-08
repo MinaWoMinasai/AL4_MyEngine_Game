@@ -5,7 +5,6 @@
 #include <wrl.h>
 #include <d3d12.h>
 
-
 struct Vector2 {
 	float x;
 	float y;
@@ -155,12 +154,6 @@ struct FormatChunk
 	WAVEFORMATEX fmt; // 波形フォーマット
 };
 
-struct Block {
-	Transform transform;
-	Microsoft::WRL::ComPtr<ID3D12Resource> wvpResource;
-	TransformationMatrix* wvpData = nullptr;
-};
-
 struct Particle {
 	Transform transform;
 	Vector3 velocity;
@@ -220,4 +213,15 @@ enum AxisXYZ {
 	X,
 	Y,
 	Z,
+};
+
+enum BlendMode {
+	kNone,
+	kAlpha,
+};
+
+enum Phase {
+	kFadeIn,
+	kMain,
+	kFadeOut,
 };

@@ -2,18 +2,19 @@
 #include "Calculation.h"
 #include "Player.h"
 #include <DirectXMath.h>
+#include "GameScene.h"
 using namespace DirectX;
 
 static constexpr float kDeltaTime = 1.0f / 60.0f;
 
 Enemy::~Enemy() {}
 
-void Enemy::Fire(bool canReflect) {
+void Enemy::Fire() {
 
 	assert(player_);
 
 	// 弾の速度
-	const float kBulletSpeed = 0.3f;
+	const float kBulletSpeed = 0.35f;
 
 	// 自キャラの位置を取得
 	Vector3 playerPos = player_->GetWorldPosition();
@@ -32,13 +33,13 @@ void Enemy::Fire(bool canReflect) {
 	}
 
 	auto bullet = std::make_unique<EnemyBullet>();
-	bullet->Initialize(worldTransform_.translate, direction);
+	bullet->Initialize(direction * 3.0f + worldTransform_.translate, direction);
 
 	bullets_.push_back(std::move(bullet));
 
 }
 
-void Enemy::ShotgunFire(int bulletCount, float spreadAngleDeg, bool canReflect, float bulletSpeed, bool randam) {
+void Enemy::ShotgunFire(int bulletCount, float spreadAngleDeg,float bulletSpeed, bool randam) {
 	assert(player_);
 
 	// 自キャラと敵の位置
@@ -75,7 +76,7 @@ void Enemy::ShotgunFire(int bulletCount, float spreadAngleDeg, bool canReflect, 
 			Vector3 velocity = bulletSpeed * dirRotated;
 
 			auto bullet = std::make_unique<EnemyBullet>();
-			bullet->Initialize(worldTransform_.translate, velocity);
+			bullet->Initialize(dirRotated * 3.0f + worldTransform_.translate, velocity);
 
 			bullets_.push_back(std::move(bullet));
 		}
@@ -98,7 +99,7 @@ void Enemy::ShotgunFire(int bulletCount, float spreadAngleDeg, bool canReflect, 
 
 			// 弾を生成
 			auto bullet = std::make_unique<EnemyBullet>();
-			bullet->Initialize(worldTransform_.translate, velocity);
+			bullet->Initialize(dirRotated * 3.0f + worldTransform_.translate, velocity);
 
 			bullets_.push_back(std::move(bullet));
 
@@ -106,7 +107,7 @@ void Enemy::ShotgunFire(int bulletCount, float spreadAngleDeg, bool canReflect, 
 	}
 }
 
-void Enemy::Initialize(Object3d* object, const Vector3& position) {
+void Enemy::Initialize(Object3d* object, const Vector3& position, GameScene* gameScene) {
 
 	object_ = object;
 	worldTransform_ = InitWorldTransform();
@@ -117,36 +118,94 @@ void Enemy::Initialize(Object3d* object, const Vector3& position) {
 	SetCollisionAttribute(kCollisionAttributeEnemy);
 	// 衝突対象をプレイヤーとプレイヤーの弾に設定
 	SetCollisionMask(kCollisionAttributePlayer | kCollisionAttributePlayerBullet);
+
+	gameScene_ = gameScene;
+	
+	sprite = std::make_unique<Sprite>();
+	sprite->Initialize(SpriteCommon::GetInstance(), "resources/bossHPGreen.png");
+	sprite->SetPosition({ 20.0f, 210.0f });
+	
+	bossHpRed = std::make_unique<Sprite>();
+	bossHpRed->Initialize(SpriteCommon::GetInstance(), "resources/bossHPRed.png");
+	bossHpRed->SetPosition({ 20.0f, 210.0f });
+
+	bossHpFont = std::make_unique<Sprite>();
+	bossHpFont->Initialize(SpriteCommon::GetInstance(), "resources/BossHp.png");
+	bossHpFont->SetPosition({ 20.0f, 160.0f });
+	bossHpFont->SetSize({120.0f, 40.0f});
+
 }
 
 void Enemy::Update() {
 
 	Move();
 
-	for (auto& bullet : bullets_) {
-		bullet->Update();
+	if (!isDead_){
+		if (HasLineOfSightToPlayer()) {
+			fireTimer_ -= 1.0f / 60.0f;
+			if (fireTimer_ <= 0) {
+				//Fire();
+				ShotgunFire(1, 30.0f, 0.2f, true);
+				fireTimer_ = kFireTimerMax_;
+			}
+		} else {
+
+			// 視線が通っていない場合、少しづつタイマーを回復
+			if (fireTimer_ < kFireTimerMax_) {
+				fireTimer_ += 1.0f / 60.0f;
+			}
+		}
+
+		for (auto& bullet : bullets_) {
+			bullet->Update();
+		}
+
+		bullets_.erase(
+			std::remove_if(
+				bullets_.begin(),
+				bullets_.end(),
+				[](const std::unique_ptr<EnemyBullet>& bullet) {
+					return bullet->IsDead();
+				}),
+			bullets_.end());
 	}
-
-	bullets_.erase(
-		std::remove_if(
-			bullets_.begin(),
-			bullets_.end(),
-			[](const std::unique_ptr<EnemyBullet>& bullet) {
-				return bullet->IsDead();
-			}),
-		bullets_.end());
-
+	
 	object_->SetTransform(worldTransform_);
 	object_->Update();
 
+	if (hp_ <= 0) {
+		Die();
+		hp_ = 0;
+	}
+	if (isExploding_) {
+		UpdateParticles(deltaTime);
+	}
+
+	sprite->SetSize(Vector2(float(hp_), sprite->GetSize().y));
+	sprite->Update();
+	bossHpRed->Update();
+	bossHpFont->Update();
 }
 
 void Enemy::Draw() {
-	object_->Draw();
-	
+	if (!isDead_) {
+		object_->Draw();
+	}
+
 	for (auto& bullet : bullets_) {
 		bullet->Draw();
 	}
+
+	for (auto& p : particles_) {
+		p.object->Draw();
+	}
+}
+
+void Enemy::DrawSprite()
+{
+	bossHpRed->Draw();
+	sprite->Draw();
+	bossHpFont->Draw();
 }
 
 void Enemy::ApproachToPlayer(Vector3& startPos, Vector3& targetPos) {
@@ -171,7 +230,36 @@ Vector3 Enemy::GetWorldPosition() const {
 	return worldPos;
 }
 
-void Enemy::OnCollision(Collider* other) {}
+std::vector<EnemyBullet*> Enemy::GetBulletPtrs()
+{
+	std::vector<EnemyBullet*> result;
+	result.reserve(bullets_.size());
+	for (const auto& b : bullets_) {
+		result.push_back(b.get());
+	}
+	return result;
+}
+
+void Enemy::OnCollision(Collider* other) {
+	
+	// つみとバグ防止
+	if (other->GetCollisionAttribute() == kCollisionAttributePlayer) {
+		Vector3 dir = worldTransform_.translate - other->GetWorldPosition();
+
+		if (Length(dir) < 0.001f) return;
+
+		dir = Normalize(dir);
+
+		const float knockPower = 1.0f;
+
+		velocity_ += dir * knockPower * other->GetHitPower();
+	}
+	// ダメージ処理
+	if (other->GetCollisionAttribute() == kCollisionAttributePlayerBullet) {
+
+		hp_ -= other->GetDamage();
+	}
+}
 
 void Enemy::AIStateMovePower() {
 	switch (aiState_) {
@@ -205,21 +293,58 @@ void Enemy::Move() {
 	Vector3 attackVec = Normalize(toPlayer) * attackPower;
 	wanderChangeTimer -= 1.0f / 60.0f;
 	if (wanderChangeTimer <= 0.0f) {
-		wanderVec = RandomDirection() * wanderPower ;
+		wanderVec = RandomDirection() * wanderPower;
 		wanderChangeTimer = 3.0f;
 	}
 
 	evadeVec = EvadeBullets() * evadePower;
-	Vector3 dir = attackVec + evadeVec + wanderVec;
+	dir_ = attackVec + evadeVec + wanderVec + WallAvoidByRay();
 
-	if (Length(dir) > 0.0001f) {
-		dir = Normalize(dir);
+	if (Length(dir_) > 0.0001f) {
+		dir_ = Normalize(dir_);
 	} else {
-		dir = { 0, 0, 0 };
+		dir_ = { 0, 0, 0 };
 	}
 
-	dir.z = 0.0f;
-	worldTransform_.translate += dir * kPower;
+	dir_.z = 0.0f;
+
+	// --- 5. プレイヤーの位置と方向ベクトル ---
+	Vector3 dir = Normalize(toPlayer);
+
+	// --- 6. 回転角度を算出 ---
+	if (Length(velocity_) > 0.001f) {
+		float angle = atan2(dir.y, dir.x);
+		worldTransform_.rotate.z = angle;
+		object_->SetRotate(worldTransform_.rotate);
+	}
+
+	if (isWallFollowing_) {
+
+		wallFollowTimer_ -= 1.0f / 60.0f;
+		dir_ = wallFollowDir_;
+
+		if (wallFollowTimer_ <= 0.0f) {
+			isWallFollowing_ = false;
+		}
+	}
+
+	// 加速（追従の強さ）
+
+	// ③ desired velocity
+	Vector3 desiredVelocity = dir_ * maxSpeed_;
+
+	// ④ 加速
+	Vector3 accel = desiredVelocity - velocity_;
+	velocity_ += accel * accel_;
+
+	// ⑤ 摩擦
+	velocity_ *= friction_;
+
+	// ⑥ 最大速度制限
+	if (Length(velocity_) > maxSpeed_) {
+		velocity_ = Normalize(velocity_) * maxSpeed_;
+	}
+
 }
 
 Vector3 Enemy::RandomDirection() { return Rand(Vector3(-0.2f, -0.2f, 0.0f), Vector3(0.2f, 0.2f, 0.5f)); }
@@ -273,5 +398,287 @@ void Enemy::UpdateAIState() {
 		aiState_ = AIState::Attack; // 中距離 → 攻撃に近づく
 	} else {
 		aiState_ = AIState::Evade; // 近すぎる → 逃げる
+	}
+}
+
+AABB Enemy::GetAABB() {
+	Vector3 worldPos = GetWorldPosition();
+
+	AABB aabb;
+
+	aabb.min = { worldPos.x - kWidth / 2.0f, worldPos.y - kHeight / 2.0f, worldPos.z - kWidth / 2.0f };
+	aabb.max = { worldPos.x + kWidth / 2.0f, worldPos.y + kHeight / 2.0f, worldPos.z + kWidth / 2.0f };
+
+	return aabb;
+}
+
+Segment Enemy::MakeForwardRay(float length) const {
+
+	Segment seg;
+	seg.origin = GetWorldPosition();
+
+	Vector3 forward = dir_;
+	if (Length(forward) < 0.001f) {
+		forward = { 1, 0, 0 }; // 保険
+	}
+
+	forward = Normalize(forward);
+
+	seg.diff = forward * length; // 線分の差分
+
+	return seg;
+}
+
+bool Enemy::IsBlockNearByRay() {
+
+	const float kRayLength = 3.0f;
+
+	Segment ray = MakeForwardRay(kRayLength);
+	
+	for (const auto& row : gameScene_->GetBlocks()) {
+		for (const Block& block : row) {
+
+			if (!block.isActive) {
+				continue;
+			}
+
+			if (IsCollision(block.aabb, ray)) {
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+Vector3 Enemy::WallAvoidByRay() {
+
+	Vector3 avoid(0, 0, 0);
+
+	if (Length(dir_) < 0.001f) {
+		return avoid;
+	}
+
+	Vector3 forward = Normalize(dir_);
+
+	if (IsBlockNearByRay() && !isWallFollowing_) {
+		
+		Vector3 left(-forward.y, forward.x, 0);
+		Vector3 right(forward.y, -forward.x, 0);
+
+		float leftScore = ScoreDir(left);
+		float rightScore = ScoreDir(right);
+
+		
+		isWallFollowing_ = true;
+		wallFollowTimer_ = 1.2f; // この時間は壁沿い優先
+		wallFollowDir_ = (leftScore < rightScore) ? left : right;
+
+		// 正面ブレーキ
+		avoid += -forward * 1.5f;
+
+		// 横へ逃がす（壁沿い移動）
+		Vector3 side(-forward.y, forward.x, 0.0f);
+		avoid += side * 1.0f;
+	}
+
+	return avoid;
+}
+
+float Enemy::ScoreDir(const Vector3& dir)
+{
+	Vector3 futurePos = GetWorldPosition() + dir * 3.0f;
+	return Length(player_->GetWorldPosition() - futurePos);
+}
+
+Segment Enemy::MakeRayToPlayer() const {
+
+	Segment seg;
+	seg.origin = GetWorldPosition();
+
+	Vector3 toPlayer = player_->GetWorldPosition() - seg.origin;
+	seg.diff = toPlayer; // プレイヤーまで
+
+	return seg;
+}
+
+bool Enemy::HitPlayerByRay(const Segment& ray)
+{
+
+	Sphere playerSphere;
+	playerSphere.center = player_->GetWorldPosition();
+	playerSphere.radius = player_->GetRadius();
+
+	return IsCollision(ray, playerSphere);
+}
+
+bool Enemy::HasLineOfSightToPlayer() {
+
+	Segment ray = MakeRayToPlayer();
+
+	float playerDist = Length(ray.diff);
+	
+	Sphere playerSphere;
+	playerSphere.center = player_->GetWorldPosition();
+	playerSphere.radius = player_->GetRadius();
+	
+	// プレイヤーに当たる？
+	if (!IsCollision(ray, playerSphere)) {
+		return false;
+	}
+
+	// 手前に壁がある？
+	for (const auto& row : gameScene_->GetBlocks()) {
+		for (const Block& block : row) {
+
+			if (!block.isActive) {
+				continue;
+			}
+
+			if (IsCollision(block.aabb, ray)) {
+
+				// ブロック中心までの距離で簡易判定
+				float blockDist =
+					Length((block.aabb.max + block.aabb.min) / 2.0f - ray.origin);
+
+				if (blockDist < playerDist) {
+					return false; // 壁に遮られている
+				}
+			}
+		}
+	}
+
+	return true; // 視線が通っている
+}
+
+void Enemy::Die()
+{
+	if (isDead_) return;
+
+	isDead_ = true;
+	isExploding_ = true;
+
+	SpawnParticles();
+	bullets_.clear();
+
+	radius_ = 0.0f;
+}
+
+bool Enemy::isFinished()
+{
+	if (isDead_ && !isExploding_) {
+		return true;
+	}
+	return false;
+}
+
+void Enemy::SpawnParticles()
+{
+	const int particleCount = 30;
+	Vector3 center = object_->GetTranslate();
+
+	for (int i = 0; i < particleCount; ++i) {
+
+		EnemyParticle p{};
+
+		p.object = std::make_unique<Object3d>();
+		p.object->Initialize();
+		p.object->SetModel("enemyParticle.obj");
+
+		p.object->SetTranslate(center);
+
+		// ----------------------
+		// ランダム方向 → 正規化
+		// ----------------------
+		Vector3 dir = Rand(
+			Vector3{ -1.0f, -1.0f, -1.0f },
+			Vector3{ 1.0f,  1.0f,  1.0f }
+		);
+		dir = Normalize(dir);
+
+		p.velocity = dir * Rand(3.0f, 6.0f);
+
+		// 回転速度
+		p.rotateSpeed = Rand(
+			Vector3{ -6.0f, -6.0f, -6.0f },
+			Vector3{ 6.0f,  6.0f,  6.0f }
+		);
+
+		// ----------------------
+		// 寿命 & 透明度
+		// ----------------------
+		p.timer = 0.0f;
+		p.lifeTime = Rand(0.9f, 1.4f);     // ★ 個体差
+		p.startAlpha = Rand(0.6f, 1.0f);   // ★ 初期アルファ
+
+		// Addブレンド映え用（少し明るめ）
+		Vector4 color = {
+			Rand(0.8f, 1.2f),
+			Rand(0.8f, 1.2f),
+			Rand(0.8f, 1.2f),
+			p.startAlpha
+		};
+		p.object->SetColor(color);
+
+		particles_.push_back(std::move(p));
+	}
+}
+
+void Enemy::UpdateParticles(float deltaTime)
+{
+	for (auto& p : particles_) {
+
+		p.timer += deltaTime;
+		if (p.timer >= p.lifeTime) continue;
+
+		float t = p.timer / p.lifeTime; // 0.0 → 1.0
+
+		// ----------------------
+		// 移動
+		// ----------------------
+		Vector3 pos = p.object->GetTranslate();
+		pos += p.velocity * deltaTime;
+
+		// 減速
+		p.velocity *= 0.97f;
+
+		// 重力
+		p.velocity.y -= 6.0f * deltaTime;
+
+		// ----------------------
+		// 回転
+		// ----------------------
+		Vector3 rot = p.object->GetRotate();
+		rot += p.rotateSpeed * deltaTime;
+
+		// ----------------------
+		// フェードアウト
+		// ----------------------
+		float alpha = p.startAlpha * (1.0f - t);
+		alpha = std::max(alpha, 0.0f);
+
+		Vector4 color = p.object->GetColor();
+		color.w = alpha;
+		p.object->SetColor(color);
+
+		// ----------------------
+		p.object->SetTranslate(pos);
+		p.object->SetRotate(rot);
+		p.object->Update();
+	}
+
+	// 寿命切れ削除
+	particles_.erase(
+		std::remove_if(
+			particles_.begin(),
+			particles_.end(),
+			[](const EnemyParticle& p) {
+				return p.timer >= p.lifeTime;
+			}),
+		particles_.end()
+	);
+
+	if (particles_.empty()) {
+		isExploding_ = false;
 	}
 }

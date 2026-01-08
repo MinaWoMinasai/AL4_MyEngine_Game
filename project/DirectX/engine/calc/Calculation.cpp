@@ -2,6 +2,8 @@
 #include "Calculation.h"
 #include <Easing.h>
 
+std::mt19937 rng(std::random_device{}());
+
 Vector3 Add(const Vector3& v1, const Vector3& v2) {
 
 	Vector3 result;
@@ -637,10 +639,22 @@ Matrix4x4 MakeLookAtMatrix(const Vector3& eye, const Vector3& target, const Vect
 	return viewMatrix;
 }
 
+int Rand(int min, int max) {
+	std::uniform_int_distribution<int> dist(min, max);
+	return dist(rng);
+}
+
 float Rand(float min, float max) {
-	static std::mt19937 rng(std::random_device{}()); // 一度だけ初期化
 	std::uniform_real_distribution<float> dist(min, max);
 	return dist(rng);
+}
+
+Vector2 Rand(const Vector2& min, const Vector2& max)
+{
+	return {
+		Rand(min.x, max.x),
+		Rand(min.y, max.y)
+	};
 }
 
 Vector3 Rand(const Vector3& min, const Vector3& max) {
@@ -959,4 +973,12 @@ Transform InitWorldTransform()
 	worldTransform.rotate = { 0.0f, 0.0f, 0.0f };
 	worldTransform.translate = { 0.0f, 0.0f, 0.0f };
 	return worldTransform;
+}
+
+Vector3 SlideLeft(const Vector3& dir) {
+	return Normalize(Vector3(-dir.y, dir.x, 0.0f));
+}
+
+Vector3 SlideRight(const Vector3& dir) {
+	return Normalize(Vector3(dir.y, -dir.x, 0.0f));
 }

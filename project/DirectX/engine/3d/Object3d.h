@@ -30,6 +30,10 @@ public:
 	void SetCamera(Camera* camera) { camera_ = camera; }
 	void SetDebugCamera(DebugCamera* debugCamera) { debugCamera_ = debugCamera; }
 
+	Vector4& GetColor() {
+		return materialData_->color;
+	}
+
 	void SetColor(const Vector4& color) {
 		materialData_->color = color;
 	}

@@ -3,6 +3,8 @@
 #include <cassert>
 #include <random>
 
+extern std::mt19937 rng;
+
 const float pi = 3.14159265f;
 
 // 加算
@@ -74,7 +76,9 @@ Matrix4x4 MakeViewportMatrix(float left, float top, float width, float height, f
 // LookAt行列
 Matrix4x4 MakeLookAtMatrix(const Vector3& eye, const Vector3& target, const Vector3& up);
 
+int Rand(int min, int max);
 float Rand(float min, float max);
+Vector2 Rand(const Vector2& min, const Vector2& max);
 Vector3 Rand(const Vector3& min, const Vector3& max);
 Vector4 Rand(const Vector4& min = {0.0f, 0.0f, 0.0f, 1.0f}, const Vector4& max = {1.0f, 1.0f, 1.0f, 1.0f});
 Particle MakeParticle(const Vector3& position, const Vector4& baseColor);
@@ -142,3 +146,7 @@ Vector3 RandomUnitVector();
 
 // ワールドトランスフォームの初期化
 Transform InitWorldTransform();
+
+Vector3 SlideLeft(const Vector3& dir);
+
+Vector3 SlideRight(const Vector3& dir);

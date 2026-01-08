@@ -1,20 +1,22 @@
 #include "PlayerBullet.h"
 
-void PlayerBullet::Initialize(const Vector3& position, const Vector3& velocity) {
+void PlayerBullet::Initialize(const Vector3& position, const Vector3& velocity, const uint32_t& damage) {
 
 	object_ = std::make_unique<Object3d>();
 	object_->Initialize();
-	object_->SetModel("bullet.obj");
+	object_->SetModel("playerBullet.obj");
 
 	worldTransform_ = InitWorldTransform();
 	worldTransform_.translate = position;
 	velocity_ = velocity;
 	object_->SetTranslate(worldTransform_.translate);
 
+	SetDamage(damage);
+
 	// 衝突属性を設定
 	SetCollisionAttribute(kCollisionAttributePlayerBullet);
 	// 衝突対象を敵に設定
-	SetCollisionMask(kCollisionAttributeEnemy | kCollisionAttributeEnemyBullet);
+	SetCollisionMask(kCollisionAttributeEnemy);
 }
 
 void PlayerBullet::Update() {

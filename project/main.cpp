@@ -1,5 +1,5 @@
 #define DIRECTINPUT_VERSION 0x0800
-#include "GameScene.h"
+#include "SceneManager.h"
 
 // Windowsアプリでのエントリーポイント(main関数)
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
@@ -15,7 +15,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	Dump dump;
 	SetUnhandledExceptionFilter(dump.Export);
 
-	
 	WinApp::GetInstance()->Initialize();
 
 	std::unique_ptr<DirectXCommon> dxCommon;
@@ -47,18 +46,29 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	ModelManager::GetInstance()->LoadModel("bunny.obj");
 	ModelManager::GetInstance()->LoadModel("plane.obj");
 	ModelManager::GetInstance()->LoadModel("cube.obj");
+	ModelManager::GetInstance()->LoadModel("cubeDamage.obj");
 	ModelManager::GetInstance()->LoadModel("axis.obj");
 	ModelManager::GetInstance()->LoadModel("player.obj");
-	ModelManager::GetInstance()->LoadModel("bullet.obj");
+	ModelManager::GetInstance()->LoadModel("playerBullet.obj");
+	ModelManager::GetInstance()->LoadModel("enemy.obj");
+	ModelManager::GetInstance()->LoadModel("enemyBullet.obj");
+	ModelManager::GetInstance()->LoadModel("playerParticle.obj");
+	ModelManager::GetInstance()->LoadModel("enemyParticle.obj");
 
 	Object3dCommon::GetInstance()->Initialize(dxCommon.get());
 	
+	SpriteCommon::GetInstance()->Initialize(dxCommon.get());
+
 	// キーの初期化
 	Input::GetInstance()->Initialize(WinApp::GetInstance()->GetWindowClass(), WinApp::GetInstance()->GetHwnd());
 	
-	std::unique_ptr<GameScene> gameScene;
-	gameScene = std::make_unique<GameScene>();
-	gameScene->Initialize();
+	//std::unique_ptr<GameScene> gameScene;
+	//gameScene = std::make_unique<GameScene>();
+	//gameScene->Initialize();
+
+	std::unique_ptr<SceneManager> sceneManager;
+	sceneManager = std::make_unique<SceneManager>();
+	sceneManager->Initialize();
 
 	MSG msg{};
 	// ウィンドウの×ボタンが押されるまでループ
@@ -85,8 +95,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 					Object3dCommon::GetInstance()->SetIsDebugCamera(true);
 				}
 			}
-
-			gameScene->Update();
+			
+			sceneManager->Update();
 
 			// ImGuiの内部コマンドを生成する
 			ImGui::Render();
@@ -95,13 +105,18 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 			srvManager->PreDraw();
 
-			gameScene->Draw();
+			sceneManager->Draw();
+
+			SpriteCommon::GetInstance()->PreDraw();
+
+			sceneManager->DrawSprite();
 
 			// 実際のcommandListのImGuiの描画コマンドを組む
 			ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), dxCommon->GetList().Get());
 
 			dxCommon->PostDraw();
 
+			sceneManager->ChangeScene();
 		}
 	}
 

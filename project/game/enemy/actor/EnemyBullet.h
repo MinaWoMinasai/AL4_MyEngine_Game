@@ -41,6 +41,13 @@ public:
 
 	float GetRadius() const override { return radius_; }
 
+	// セッター
+	void SetWorldPosition(const Vector3& pos) {
+		worldTransform_.translate = pos;
+		object_->SetTransform(worldTransform_);
+		object_->Update();
+	}
+
 private:
 
 	std::unique_ptr<Object3d> object_;

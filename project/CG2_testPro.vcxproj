@@ -194,6 +194,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
       <WholeProgramOptimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</WholeProgramOptimization>
     </ClCompile>
+    <ClCompile Include="game\scene\Fade.cpp" />
     <ClCompile Include="game\collision\Collider.cpp" />
     <ClCompile Include="game\collision\CollisionConfig.cpp" />
     <ClCompile Include="game\collision\CollisionManager.cpp" />
@@ -242,6 +243,8 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="DirectX\engine\3d\ModelCommon.cpp" />
     <ClCompile Include="DirectX\engine\3d\ModelManager.cpp" />
     <ClCompile Include="DirectX\engine\commom\SrvManager.cpp" />
+    <ClCompile Include="game\scene\TitleScene.cpp" />
+    <ClCompile Include="game\scene\SceneManager.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="resources\shaders\Object3d.PS.hlsl">
@@ -311,6 +314,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="DirectX\engine\3d\ModelCommon.h" />
     <ClInclude Include="DirectX\engine\3d\ModelManager.h" />
     <ClInclude Include="DirectX\engine\commom\SrvManager.h" />
+    <ClInclude Include="game\scene\Fade.h" />
     <ClInclude Include="game\collision\Collider.h" />
     <ClInclude Include="game\collision\CollisionConfig.h" />
     <ClInclude Include="game\collision\CollisionManager.h" />
@@ -320,6 +324,8 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="game\player\actor\Player.h" />
     <ClInclude Include="game\player\actor\PlayerBullet.h" />
     <ClInclude Include="game\scene\GameScene.h" />
+    <ClInclude Include="game\scene\TitleScene.h" />
+    <ClInclude Include="game\scene\SceneManager.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="externals\imgui\LICENSE.txt" />

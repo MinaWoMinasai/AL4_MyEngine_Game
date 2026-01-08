@@ -15,6 +15,20 @@
 #include "Enemy.h"
 #include "CollisionManager.h"
 #include "MapChip.h"
+#include "Fade.h"
+
+struct MergedBlock {
+	AABB aabb;
+	MapChipType type;
+};
+
+struct Block {
+	Transform worldTransform;
+	std::unique_ptr<Object3d> object;
+	AABB aabb;
+	bool isActive = false;
+	MapChipType type;
+};
 
 // ゲームシーン
 class GameScene {
@@ -47,6 +61,11 @@ public:
 	void Draw();
 
 	/// <summary>
+	/// 描画
+	/// </summary>
+	void DrawSprite();
+
+	/// <summary>
 	/// マップチップの生成
 	/// </summary>
 	void GenerateBlocks();
@@ -57,9 +76,21 @@ public:
 	void CheckCollisionPlayerAndBlocks(AxisXYZ axis);
 
 	/// <summary>
+	/// 敵とブロックの当たり判定
+	/// </summary>
+	/// <param name="axis"></param>
+	bool CheckCollisionEnemyAndBlocks(AxisXYZ axis);
+
+	/// <summary>
 	/// 敵の弾とブロックの当たり判定
 	/// </summary>
 	void CheckCollisionBulletsAndBlocks();
+
+	const std::vector<std::vector<Block>>& GetBlocks() const;
+
+	void CheckCollisionEnemyBulletsAndBlocks();
+
+	bool IsFinished() const { return finished_; }
 
 private:
 
@@ -88,14 +119,6 @@ private:
 	// 衝突マネージャ
 	std::unique_ptr<CollisionManager> collisionManager_;
 
-
-	struct Block {
-		Transform worldTransform;
-		std::unique_ptr<Object3d> object;
-		AABB aabb;
-		bool isActive = false;
-	};
-
 	// ブロック用のワールドトランスフォーム
 	std::vector<std::vector<Block>> blocks_;
 	// マップチップ
@@ -103,5 +126,18 @@ private:
 
 	size_t currentLineIndex_ = 0;
 
-	std::vector<AABB> mergedBlocks_;
+	std::vector<MergedBlock> mergedBlocks_;
+
+	// 終了フラグ
+	bool finished_ = false;
+
+	std::unique_ptr<Fade> fade_ = nullptr;
+	Phase phase_ = Phase::kFadeIn;
+
+	std::unique_ptr<Sprite> shotGide;
+	std::unique_ptr<Sprite> wasdGide;
+	std::unique_ptr<Sprite> toTitleGide;
+
+	// カメラ合わせフラグ
+	bool cameraFollow_ = true;
 };
