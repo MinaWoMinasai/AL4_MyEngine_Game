@@ -79,7 +79,7 @@ public:
 	/// 敵とブロックの当たり判定
 	/// </summary>
 	/// <param name="axis"></param>
-	bool CheckCollisionEnemyAndBlocks(AxisXYZ axis);
+	//bool CheckCollisionEnemyAndBlocks(AxisXYZ axis);
 
 	/// <summary>
 	/// 敵の弾とブロックの当たり判定
@@ -88,7 +88,7 @@ public:
 
 	const std::vector<std::vector<Block>>& GetBlocks() const;
 
-	void CheckCollisionEnemyBulletsAndBlocks();
+	//void CheckCollisionEnemyBulletsAndBlocks();
 
 	bool IsFinished() const { return finished_; }
 
@@ -114,7 +114,7 @@ private:
 	std::unique_ptr<Player> player_;
 
 	// 敵
-	std::unique_ptr<Enemy> enemy_;
+	//std::unique_ptr<Enemy> enemy_;
 
 	// 衝突マネージャ
 	std::unique_ptr<CollisionManager> collisionManager_;

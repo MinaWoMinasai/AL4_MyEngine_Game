@@ -6,7 +6,7 @@ Player::~Player() {
 
 void Player::Attack() {
 
-	if (input_->IsPress(input_->GetKey()[DIK_SPACE]) || input_->IsPress(input_->GetMouseState().rgbButtons[0])) {
+	if (input_->IsPress(input_->GetMouseState().rgbButtons[0])) {
 
 		// 弾のクールタイムを計算する
 		bulletCoolTime--;
@@ -60,8 +60,8 @@ void Player::RotateToMouse(Camera* viewProjection) {
 	dir = Normalize(targetPos);
 
 	// --- 6. 回転角度を算出 ---
-	float angle = atan2(dir.y, dir.x);
-	worldTransform_.rotate.z = angle;
+	angle_ = atan2(dir.y, dir.x);
+	worldTransform_.rotate.z = angle_;
 	object_->SetRotate(worldTransform_.rotate);
 }
 
@@ -97,33 +97,55 @@ void Player::Initialize(Object3d* object, const Vector3& position) {
 	// 衝突対象を自分の属性以外に設定
 	SetCollisionMask(kCollisionAttributeEnemy | kCollisionAttributeEnemyBullet);
 }
-
-void Player::Update(Camera* viewProjection) {
+void Player::Update(Camera* viewProjection)
+{
+	float dt = 1.0f / 60.0f;
 
 	invincibleTimer_ -= 1.0f / 60.0f;
 
-	RotateToMouse(viewProjection);
-	inputDir_ = { 0, 0, 0 };
+	// ----------------------
+	// 横入力
+	// ----------------------
+	inputDir_ = { 0,0,0 };
 
 	if (input_->IsPress(input_->GetKey()[DIK_A])) inputDir_.x -= 1.0f;
 	if (input_->IsPress(input_->GetKey()[DIK_D])) inputDir_.x += 1.0f;
-	if (input_->IsPress(input_->GetKey()[DIK_W])) inputDir_.y += 1.0f;
-	if (input_->IsPress(input_->GetKey()[DIK_S])) inputDir_.y -= 1.0f;
+
+	// ----------------------
+	// 横移動（加速・減速）
+	// ----------------------
+	float targetSpeedX = inputDir_.x * maxSpeed_;
+	float accel = (fabs(inputDir_.x) > 0.0f) ? accel_ : decel_;
+
+	velocity_.x += (targetSpeedX - velocity_.x) * accel * dt;
+
+	// ----------------------
+	// ジャンプ
+	// ----------------------
+	if (isOnGround_ && input_->IsTrigger(input_->GetKey()[DIK_SPACE], input_->GetPreKey()[DIK_SPACE])) {
+		velocity_.y = jumpPower_;
+		isOnGround_ = false;
+	}
+
+	// ----------------------
+	// 重力
+	// ----------------------
+	velocity_.y += gravity_ * dt;
+
+	// object_ の更新だけ（移動はしない）
+	object_->SetTransform(worldTransform_);
+	object_->Update();
+
+
+
+	RotateToMouse(viewProjection);
+	inputDir_ = { 0, 0, 0 };
 
 	if (Length(inputDir_) > 1.0f) {
 		inputDir_ = Normalize(inputDir_);
 	}
 
-	// --- 目標速度 ---
-	Vector3 targetVelocity = inputDir_ * maxSpeed_;
-
-	// --- 慣性処理 ---
-	float dt = 1.0f / 60.0f;
-	float accel = (Length(inputDir_) > 0.0f) ? accel_ : decel_;
-
-	velocity_ += (targetVelocity - velocity_) * accel * dt;
-
-	if (!isDead_){
+	if (!isDead_) {
 		// 攻撃処理
 		Attack();
 
@@ -141,9 +163,7 @@ void Player::Update(Camera* viewProjection) {
 			bullets_.end());
 
 	}
-	
-	object_->SetTransform(worldTransform_);
-	object_->Update();
+
 	for (auto& sprite : hpSprites_) {
 		sprite->Update();
 	}
@@ -155,7 +175,7 @@ void Player::Update(Camera* viewProjection) {
 	if (isExploding_) {
 		UpdateParticles(deltaTime);
 	}
-	
+
 }
 
 void Player::Draw() {
@@ -253,10 +273,10 @@ void Player::Damage()
 {
 	if (invincibleTimer_ <= 0.0f) {
 		if (hp_ > 0) {
-			hpSprites_.pop_back();
+			//hpSprites_.pop_back();
 		}
-		hp_--;
-		invincibleTimer_ = 2.0f;
+		//hp_--;
+		//invincibleTimer_ = 2.0f;
 	}
 }
 
