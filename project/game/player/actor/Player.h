@@ -79,6 +79,7 @@ public:
 	Vector3 GetWorldPosition() const override;
 
 	Vector3 GetMove() { return velocity_; }
+	void SetVelocity(const Vector3& v) { velocity_ = v; }
 
 	// セッター
 	void SetWorldPosition(const Vector3& pos) {
@@ -103,6 +104,10 @@ public:
 
 	bool IsDead() const { return isDead_; }
 
+	bool IsOnGround() const { return isOnGround_; }
+	void SetOnGround(bool onGround) { isOnGround_ = onGround; }
+
+	float GetAngle() const { return angle_; }
 private:
 	// ワールド変換データ
 	Transform worldTransform_;
@@ -137,6 +142,11 @@ private:
 	float accel_ = 2.5f;         // 加速
 	float decel_ = 3.5f;         // 減速（ブレーキ）
 
+	float gravity_ = -2.0f;
+	float jumpPower_ = 1.0f;
+
+	bool isOnGround_ = false;
+
 	Transform hpTransform_;
 
 	// HPモデル
@@ -157,5 +167,7 @@ private:
 	void SpawnParticles();
 	void UpdateParticles(float deltaTime = 1.0f / 60.0f);
 	const float deltaTime = 1.0f / 60.0f;
+
+	float angle_ = 0.0f;
 };
 
