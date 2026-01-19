@@ -6,18 +6,19 @@
 #include "CollisionConfig.h"
 #include <Object3d.h>
 
-class PlayerBullet : public Collider {
+class Bullet : public Collider {
 
 public:
 
-	void Initialize(const Vector3& position, const Vector3& velocity, const uint32_t& damage);
+	void Initialize(const Vector3& position, const Vector3& velocity, const uint32_t& damage, BulletOwner owner,
+		bool reflectable);
 
 	void Update();
 
 	void Draw();
 
 	bool IsDead() const { return isDead_; }
-	
+
 	/// <summary>
 	/// 衝突判定
 	/// </summary>
@@ -35,17 +36,18 @@ public:
 		object_->Update();
 	}
 
-	AABB GetAABB();
-
 	void SetVelocity(const Vector3& v) { velocity_ = v; }
-	AABB ComputeAABBAt(const Vector3& pos);
 
 	float GetRadius() const override { return radius_; }
+
+	bool IsReflectable() const { return isReflectable_; }
+
+	void Die();
 
 private:
 
 	std::unique_ptr<Object3d> object_;
-	
+
 	// ワールドトランスフォーム
 	Transform worldTransform_;
 
@@ -63,5 +65,9 @@ private:
 	static inline const float kWidth = 1.6f;
 	static inline const float kHeight = 1.6f;
 
-	float radius_ = 1.0f;
+	float radius_ = 0.5f;
+
+	// 反射するか
+	bool isReflectable_ = false;
+	BulletOwner owner_;
 };

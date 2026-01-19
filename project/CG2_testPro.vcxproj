@@ -150,6 +150,9 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="game\player\actor\BulletManager.cpp" />
+    <ClCompile Include="game\player\actor\AttackController.cpp" />
+    <ClCompile Include="game\player\actor\Bullet.cpp" />
     <ClCompile Include="DirectX\engine\debugCamera\Camera.cpp" />
     <ClCompile Include="DirectX\engine\audio\Audio.cpp">
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
@@ -199,10 +202,8 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="game\collision\CollisionConfig.cpp" />
     <ClCompile Include="game\collision\CollisionManager.cpp" />
     <ClCompile Include="game\enemy\actor\Enemy.cpp" />
-    <ClCompile Include="game\enemy\actor\EnemyBullet.cpp" />
     <ClCompile Include="game\mapchip\MapChip.cpp" />
     <ClCompile Include="game\player\actor\Player.cpp" />
-    <ClCompile Include="game\player\actor\PlayerBullet.cpp" />
     <ClCompile Include="game\scene\GameScene.cpp" />
     <ClCompile Include="main.cpp">
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Development|x64'">MaxSpeed</Optimization>
@@ -245,6 +246,8 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="DirectX\engine\commom\SrvManager.cpp" />
     <ClCompile Include="game\scene\TitleScene.cpp" />
     <ClCompile Include="game\scene\SceneManager.cpp" />
+    <ClCompile Include="game\player\actor\Stage.cpp" />
+    <ClCompile Include="game\player\actor\PlayerDrone.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="resources\shaders\Object3d.PS.hlsl">
@@ -281,6 +284,9 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="game\player\actor\BulletManager.h" />
+    <ClInclude Include="game\player\actor\AttackController.h" />
+    <ClInclude Include="game\player\actor\Bullet.h" />
     <ClInclude Include="DirectX\engine\debugCamera\Camera.h" />
     <ClInclude Include="DirectX\engine\audio\Audio.h" />
     <ClInclude Include="DirectX\engine\calc\Calculation.h" />
@@ -319,13 +325,13 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClInclude Include="game\collision\CollisionConfig.h" />
     <ClInclude Include="game\collision\CollisionManager.h" />
     <ClInclude Include="game\enemy\actor\Enemy.h" />
-    <ClInclude Include="game\enemy\actor\EnemyBullet.h" />
     <ClInclude Include="game\mapchip\MapChip.h" />
     <ClInclude Include="game\player\actor\Player.h" />
-    <ClInclude Include="game\player\actor\PlayerBullet.h" />
     <ClInclude Include="game\scene\GameScene.h" />
     <ClInclude Include="game\scene\TitleScene.h" />
     <ClInclude Include="game\scene\SceneManager.h" />
+    <ClInclude Include="game\player\actor\Stage.h" />
+    <ClInclude Include="game\player\actor\PlayerDrone.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="externals\imgui\LICENSE.txt" />

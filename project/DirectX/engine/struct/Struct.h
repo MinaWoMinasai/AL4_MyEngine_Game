@@ -225,3 +225,35 @@ enum Phase {
 	kMain,
 	kFadeOut,
 };
+
+struct AttackParam {
+	float bulletSpeed;
+	int bulletCount;
+	float spreadAngleDeg;
+	bool randomSpread;
+
+	bool reflect;
+	bool penetrate;
+
+	float cooldown;
+
+	uint32_t damage;
+};
+
+enum BulletOwner {
+	kPlayer,
+	kEnemy
+};
+
+enum TankType {
+	SingleShot,
+	DoubleShot,
+	TripleShot,
+
+	Shotgun,
+
+	ShotDrone,
+
+
+
+};

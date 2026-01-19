@@ -1,11 +1,11 @@
 #pragma once
 #define NOMINMAX
 #include "Collider.h"
-#include "EnemyBullet.h"
 #include <Windows.h>
 #include <algorithm>
 #include "Object3d.h"
 #include "Sprite.h"
+#include "AttackController.h"
 
 struct EnemyParticle {
 	std::unique_ptr<Object3d> object;
@@ -18,7 +18,7 @@ struct EnemyParticle {
 };
 
 class Player;
-class GameScene;
+class Stage;
 
 class Enemy : public Collider {
 
@@ -39,7 +39,7 @@ public:
 	/// <summary>
 	/// 初期化
 	/// </summary>
-	void Initialize(Object3d* object, const Vector3& position, GameScene* gameScene);
+	void Initialize(Object3d* object, const Vector3& position, Stage* stage);
 
 	/// <summary>
 	/// 更新
@@ -66,7 +66,7 @@ public:
 	/// </summary>
 	/// <param name="spreadAngle"></param>
 	/// <param name="canReflect"></param>
-	void ShotgunFire(int bulletCount, float spreadAngleDeg, float bulletSpeed = 0.3f, bool randam = true);
+	void ShotgunFire();
 
 	/// <summary>
 	///
@@ -78,9 +78,6 @@ public:
 	Transform& GetWorldTransform() { return worldTransform_; }
 
 	Vector3 GetWorldPosition() const override;
-
-	// 弾のゲッター
-	std::vector<EnemyBullet*> GetBulletPtrs();
 
 	// 自キャラのセッター
 	void SetPlayer(Player* player) { player_ = player; }
@@ -150,6 +147,11 @@ public:
 
 	bool IsDead() const { return isDead_; }
 
+	void SetAttackControllerBulletManager(BulletManager* bulletManager) {
+		bulletManager_ = bulletManager;
+		attackController_.SetBulletManager(bulletManager);
+	}
+
 private:
 	// ワールド変換データ
 	Transform worldTransform_;
@@ -158,9 +160,6 @@ private:
 
 	// テクスチャハンドル
 	uint32_t textureHandle_ = 0u;
-
-	// 弾
-	std::vector<std::unique_ptr<EnemyBullet>> bullets_;
 
 	// 発射タイマー
 	int32_t fireIntervalTimer = 0;
@@ -197,7 +196,7 @@ private:
 	
 	Vector3 dir_;
 
-	GameScene* gameScene_ = nullptr;
+	Stage* stage_ = nullptr;
 	
 	bool isWallFollowing_ = false;
 	float wallFollowTimer_ = 0.0f;
@@ -224,6 +223,11 @@ private:
 	bool isExploding_ = false;
 
 	std::vector<EnemyParticle> particles_;
+
+	// 攻撃コントローラ
+	AttackController attackController_;
+
+	BulletManager* bulletManager_ = nullptr;
 
 private:
 	void SpawnParticles();

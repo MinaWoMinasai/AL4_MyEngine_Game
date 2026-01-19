@@ -1,4 +1,5 @@
 #include "Player.h"
+#include "Stage.h"
 
 Player::~Player() {
 	
@@ -6,27 +7,68 @@ Player::~Player() {
 
 void Player::Attack() {
 
+	// 弾のクールタイムを計算する
+	bulletCoolTime--;
+
 	if (input_->IsPress(input_->GetMouseState().rgbButtons[0])) {
 
-		// 弾のクールタイムを計算する
-		bulletCoolTime--;
+		if (bulletCoolTime <= 0) {
+
+			// 発射位置
+			Vector3 origin = GetWorldPosition();
+
+			// 攻撃パラメータを設定
+			AttackParam param{};
+			param.bulletSpeed = 0.4f;
+			param.bulletCount = 2;
+			param.spreadAngleDeg = 5.0f;
+			param.randomSpread = false;
+
+			param.reflect = true;
+			param.penetrate = false;
+			param.cooldown = 1.0f;
+			param.damage = 1;
+
+			// 発射
+			attackController_.Fire(
+				origin,
+				dir,
+				param,
+				BulletOwner::kPlayer
+			);
+
+			bulletCoolTime = kBulletTime;
+		}
+	}
+}
+
+void Player::DroneShoot(BulletManager* BulletManager)
+{
+
+	// 弾のクールタイムを計算する
+	bulletCoolTime--;
+
+	//if (input_->IsPress(input_->GetMouseState().rgbButtons[0])) {
+
+		if (drones_.size() >= 7) {
+			bulletCoolTime = 0;
+			return;
+		}
 
 		if (bulletCoolTime <= 0) {
 
 			// 弾の速度
-			const float kBulletSpeed = 0.4f;
+			const float kBulletSpeed = 0.2f;
 			Vector3 velocity = dir * kBulletSpeed;
 
-			auto bullet = std::make_unique<PlayerBullet>();
-			bullet->Initialize(dir * 0.3f + worldTransform_.translate, velocity, 2);
+			auto drone = std::make_unique<PlayerDrone>();
+			drone->Initialize(dir * 0.3f + worldTransform_.translate, velocity);
+			drone->SetAttackControllerBulletManager(BulletManager);
+			drones_.push_back(std::move(drone));
 
-			bullets_.push_back(std::move(bullet));
-
-			bulletCoolTime = kBulletTime;
+			bulletCoolTime = 60;
 		}
-	} else {
-		bulletCoolTime = 0;
-	}
+	//}
 }
 
 void Player::RotateToMouse(Camera* viewProjection) {
@@ -97,70 +139,65 @@ void Player::Initialize(Object3d* object, const Vector3& position) {
 	// 衝突対象を自分の属性以外に設定
 	SetCollisionMask(kCollisionAttributeEnemy | kCollisionAttributeEnemyBullet);
 }
-void Player::Update(Camera* viewProjection)
-{
-	float dt = 1.0f / 60.0f;
 
+void Player::Update(Camera* viewProjection, Stage& stage, BulletManager* BulletManager)
+{
 	invincibleTimer_ -= 1.0f / 60.0f;
 
-	// ----------------------
-	// 横入力
-	// ----------------------
+	RotateToMouse(viewProjection);
 	inputDir_ = { 0,0,0 };
 
 	if (input_->IsPress(input_->GetKey()[DIK_A])) inputDir_.x -= 1.0f;
 	if (input_->IsPress(input_->GetKey()[DIK_D])) inputDir_.x += 1.0f;
-
-	// ----------------------
-	// 横移動（加速・減速）
-	// ----------------------
-	float targetSpeedX = inputDir_.x * maxSpeed_;
-	float accel = (fabs(inputDir_.x) > 0.0f) ? accel_ : decel_;
-
-	velocity_.x += (targetSpeedX - velocity_.x) * accel * dt;
-
-	// ----------------------
-	// ジャンプ
-	// ----------------------
-	if (isOnGround_ && input_->IsTrigger(input_->GetKey()[DIK_SPACE], input_->GetPreKey()[DIK_SPACE])) {
-		velocity_.y = jumpPower_;
-		isOnGround_ = false;
-	}
-
-	// ----------------------
-	// 重力
-	// ----------------------
-	velocity_.y += gravity_ * dt;
-
-	// object_ の更新だけ（移動はしない）
-	object_->SetTransform(worldTransform_);
-	object_->Update();
-
-
-
-	RotateToMouse(viewProjection);
-	inputDir_ = { 0, 0, 0 };
+	if (input_->IsPress(input_->GetKey()[DIK_W])) inputDir_.y += 1.0f;
+	if (input_->IsPress(input_->GetKey()[DIK_S])) inputDir_.y -= 1.0f;
 
 	if (Length(inputDir_) > 1.0f) {
 		inputDir_ = Normalize(inputDir_);
 	}
 
+	// --- 目標速度 ---
+	Vector3 targetVelocity = inputDir_ * maxSpeed_;
+
+	// --- 慣性処理 ---
+	float dt = 1.0f / 60.0f;
+	float accel = (Length(inputDir_) > 0.0f) ? accel_ : decel_;
+
+	velocity_ += (targetVelocity - velocity_) * accel * dt;
+
+	// X軸移動
+	Vector3 playerPos = GetWorldPosition();
+	playerPos.x += GetMove().x;
+	SetWorldPosition(playerPos);
+	stage.ResolvePlayerCollision(*this, X);
+
+	// Y軸移動
+	playerPos = GetWorldPosition();
+	playerPos.y += GetMove().y;
+	SetWorldPosition(playerPos);
+	stage.ResolvePlayerCollision(*this, Y);
+
+	// object_ の更新だけ（移動はしない）
+	object_->SetTransform(worldTransform_);
+	object_->Update();
+
 	if (!isDead_) {
 		// 攻撃処理
-		Attack();
+		//Attack();
+		DroneShoot(BulletManager);
 
-		for (auto& bullet : bullets_) {
-			bullet->Update();
+		for (auto& drone : drones_) {
+			drone->Update(viewProjection, stage, worldTransform_.translate);
 		}
 
-		bullets_.erase(
+		drones_.erase(
 			std::remove_if(
-				bullets_.begin(),
-				bullets_.end(),
-				[](const std::unique_ptr<PlayerBullet>& bullet) {
-					return bullet->IsDead();
+				drones_.begin(),
+				drones_.end(),
+				[](const std::unique_ptr<PlayerDrone>& drone) {
+					return drone->IsDead();
 				}),
-			bullets_.end());
+			drones_.end());
 
 	}
 
@@ -180,10 +217,11 @@ void Player::Update(Camera* viewProjection)
 
 void Player::Draw() {
 
-	// 弾の描画
-	for (auto& bullet : bullets_) {
-		bullet->Draw();
+	// ドローンの描画
+	for (auto& drone : drones_) {
+		drone->Draw();
 	}
+
 	if (!isDead_) {
 		// 無敵時間中は点滅
 
@@ -206,6 +244,15 @@ void Player::DrawSprite()
 		sprite->Draw();
 	}
 	hpFont->Draw();
+}
+
+std::vector<PlayerDrone*> Player::GetDronePtrs() const {
+	std::vector<PlayerDrone*> result;
+	result.reserve(drones_.size());
+	for (const auto& d : drones_) {
+		result.push_back(d.get());
+	}
+	return result;
 }
 
 Vector3 Player::GetWorldPosition() const {
@@ -231,15 +278,6 @@ Vector2 Player::GetMoveInput() {
 	if (input_->IsPress(input_->GetKey()[DIK_S]))
 		move.y -= kCharacterSpeed;
 	return move;
-}
-
-std::vector<PlayerBullet*> Player::GetBulletPtrs() const {
-	std::vector<PlayerBullet*> result;
-	result.reserve(bullets_.size());
-	for (const auto& b : bullets_) {
-		result.push_back(b.get());
-	}
-	return result;
 }
 
 void Player::OnCollision(Collider* other) {
@@ -290,7 +328,7 @@ void Player::Die()
 	SpawnParticles();
 
 	// すべての弾を消す
-	bullets_.clear();
+	//bullets_.clear();
 }
 
 bool Player::isFinished()
