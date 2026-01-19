@@ -4,7 +4,8 @@
 
 class Enemy;
 class Player;
-class EnemyBullet;
+class PlayerDrone;
+class BulletManager;
 
 class CollisionManager {
 
@@ -12,7 +13,7 @@ public:
 	/// <summary>
 	/// 衝突判定と応答
 	/// </summary>
-	void CheckAllCollisions(Player* player, Enemy* enemy);
+	void CheckAllCollisions(Player* player, Enemy* enemy, BulletManager* bulletManager);
 
 	/// <summary>
 	/// コライダー二つの衝突判定と応答
@@ -26,7 +27,7 @@ public:
 	/// </summary>
 	/// <param name="player"></param>
 	/// <param name="enemy"></param>
-	void SetColliders(Player* player, Enemy* enemy);
+	void SetColliders(Player* player, Enemy* enemy, BulletManager* bulletManager);
 
 private:
 	// コライダーリスト

@@ -62,10 +62,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	// キーの初期化
 	Input::GetInstance()->Initialize(WinApp::GetInstance()->GetWindowClass(), WinApp::GetInstance()->GetHwnd());
 	
-	//std::unique_ptr<GameScene> gameScene;
-	//gameScene = std::make_unique<GameScene>();
-	//gameScene->Initialize();
-
 	std::unique_ptr<SceneManager> sceneManager;
 	sceneManager = std::make_unique<SceneManager>();
 	sceneManager->Initialize();

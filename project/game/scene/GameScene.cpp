@@ -16,8 +16,6 @@ void GameScene::Initialize() {
 
 	camera->SetTranslate(Vector3(17.0f, 21.0f, -80.0f));
 
-	
-
 	Object3dCommon::GetInstance()->SetDefaultCamera(camera.get());
 	Object3dCommon::GetInstance()->SetDebugDefaultCamera(debugCamera.get());
 
@@ -38,18 +36,22 @@ void GameScene::Initialize() {
 	object3d3->SetModel("plane.obj");
 	playerObject_->SetModel("player.obj");
 
-	mapChip_ = std::make_unique<MapChip>();
-	mapChip_->LoadMapChipCsv("resources/map.csv");
-	GenerateBlocks();
+	stage_ = std::make_unique<Stage>();
+	stage_->Initialize();
+
+	// 弾マネージャの生成
+	bulletManager_ = std::make_unique<BulletManager>();
 
 	player_ = std::make_unique<Player>();
 	player_->Initialize(playerObject_.get(), Vector3(30.0f, 30.0f, 0.0f));
+	player_->SetAttackControllerBulletManager(bulletManager_.get());
 
 	// 敵キャラの生成
-	//enemy_ = std::make_unique<Enemy>();
+	enemy_ = std::make_unique<Enemy>();
 	// 敵キャラの初期化
-	//enemy_->SetPlayer(player_.get());
-	//enemy_->Initialize(enemyObject_.get(), Vector3(20.0f, 20.0f, 0.0f), this);
+	enemy_->SetPlayer(player_.get());
+	enemy_->Initialize(enemyObject_.get(), Vector3(20.0f, 20.0f, 0.0f), stage_.get());
+	enemy_->SetAttackControllerBulletManager(bulletManager_.get());
 
 	// 衝突マネージャの生成
 	collisionManager_ = std::make_unique<CollisionManager>();
@@ -76,57 +78,29 @@ void GameScene::Initialize() {
 
 void GameScene::Update() {
 
+	ImGui::Begin("FPS");
+	ImGui::Text("FPS: %.2f", ImGui::GetIO().Framerate);
+	ImGui::End();
+
 	worldTransform_.translate.y += 0.01f;
 
 	object3d->SetTranslate(worldTransform_.translate);
 	object3d->Update();
 
-	//camera->GetRotate().z = player_->GetAngle();
 	camera->Update();
 	debugCamera->Update(input_->GetMouseState(), input_->GetKey(), input_->GetLeftStick());
 
-	player_->Update(camera.get());
+	player_->Update(camera.get(), *stage_, bulletManager_.get());
 	
+	enemy_->Update();
+
+	bulletManager_->Update();
 
 	// 弾とブロックの当たり判定
-	CheckCollisionBulletsAndBlocks();
-
-	// 接地状態リセット（毎フレーム）
-	player_->SetOnGround(false);
-
-	// X軸移動
-	Vector3 playerPos = player_->GetWorldPosition();
-	playerPos.x += player_->GetMove().x;
-	player_->SetWorldPosition(playerPos);
-	CheckCollisionPlayerAndBlocks(X);
-
-	// Y軸移動
-	playerPos = player_->GetWorldPosition();
-	playerPos.y += player_->GetMove().y;
-	player_->SetWorldPosition(playerPos);
-	CheckCollisionPlayerAndBlocks(Y);
-
-	//enemy_->Update();
-
-	// 敵の弾とブロックの当たり判定
-	//CheckCollisionEnemyBulletsAndBlocks();
-
-	//Vector3 baseDir = enemy_->GetDir();
-
-	//// X移動
-	//Vector3 pos = enemy_->GetWorldPosition();
-	//pos.x += enemy_->GetMove().x;
-	//enemy_->SetWorldPosition(pos);
-	//bool hitX = CheckCollisionEnemyAndBlocks(X);
-
-	//// Y移動
-	//pos = enemy_->GetWorldPosition();
-	//pos.y += enemy_->GetMove().y;
-	//enemy_->SetWorldPosition(pos);
-	//bool hitY = CheckCollisionEnemyAndBlocks(Y);
-
+	stage_->ResolveBulletsCollision(bulletManager_->GetBulletPtrs());
+    
 	// 衝突マネージャの更新
-	//collisionManager_->CheckAllCollisions(player_.get(), enemy_.get());
+	collisionManager_->CheckAllCollisions(player_.get(), enemy_.get(), bulletManager_.get());
 
 	switch (phase_) {
 	case Phase::kFadeIn:
@@ -147,10 +121,10 @@ void GameScene::Update() {
 			phase_ = Phase::kFadeOut;
 		}
 
-		//if (enemy_->isFinished()) {
-		//	fade_->Start(Fade::Status::FadeOut, 1.0f);
-		//	phase_ = Phase::kFadeOut;
-		//}
+		if (enemy_->isFinished()) {
+			fade_->Start(Fade::Status::FadeOut, 1.0f);
+			phase_ = Phase::kFadeOut;
+		}
 
 		break;
 	case Phase::kFadeOut:
@@ -174,12 +148,12 @@ void GameScene::Update() {
 			cameraFollow_ = false;
 		}
 
-		//// 敵が死んでいる場合カメラを敵に合わせる
-		//if (enemy_->IsDead()) {
-		//	Vector3 enemyPos = enemy_->GetWorldPosition();
-		//	camera->SetTranslate({ enemyPos.x, enemyPos.y, -50.0f });
-		//	cameraFollow_ = false;
-		//}
+		// 敵が死んでいる場合カメラを敵に合わせる
+		if (enemy_->IsDead()) {
+			Vector3 enemyPos = enemy_->GetWorldPosition();
+			camera->SetTranslate({ enemyPos.x, enemyPos.y, -50.0f });
+			cameraFollow_ = false;
+		}
 	}
 }
 
@@ -189,318 +163,20 @@ void GameScene::Draw() {
 
 	player_->Draw();
 
-	//enemy_->Draw();
+	enemy_->Draw();
 
-	for (auto& line : blocks_) {
-		for (auto& block : line) {
-			if (!block.isActive) continue;
+	bulletManager_->Draw();
 
-			block.object->Update();
-			block.object->Draw();
-		}
-	}
+	stage_->Draw();
+
 }
 
 void GameScene::DrawSprite() {
 
-	//enemy_->DrawSprite();
+	enemy_->DrawSprite();
 	player_->DrawSprite();
 	shotGide->Draw();
 	wasdGide->Draw();
 	toTitleGide->Draw();
 	fade_->Draw();
-}
-
-void GameScene::GenerateBlocks() {
-
-	uint32_t numBlockHorizontal = mapChip_->GetNumBlockHorizontal();
-	uint32_t numBlockVirtical = mapChip_->GetNumBlockVirtical();
-
-	blocks_.resize(numBlockVirtical);
-	for (uint32_t y = 0; y < numBlockVirtical; ++y) {
-		blocks_[y].resize(numBlockHorizontal);
-	}
-
-	for (uint32_t y = 0; y < numBlockVirtical; ++y) {
-		for (uint32_t x = 0; x < numBlockHorizontal; ++x) {
-
-			if (mapChip_->GetMapChipTypeByIndex(x, y) == MapChipType::kBlock || mapChip_->GetMapChipTypeByIndex(x, y) == MapChipType::kDamageBlock) {
-
-				Block& block = blocks_[y][x];
-
-				block.worldTransform = InitWorldTransform();
-				block.worldTransform.translate = mapChip_->GetMapChipPositionByIndex(x, y);
-				block.object = std::make_unique<Object3d>();
-				block.object->Initialize();
-				if (mapChip_->GetMapChipTypeByIndex(x, y) == MapChipType::kBlock) {
-					block.object->SetModel("cube.obj");
-				} else {
-					block.object->SetModel("cubeDamage.obj");
-				}
-
-				block.object->SetTransform(block.worldTransform);
-
-				// 中心座標
-				const auto& pos = block.worldTransform.translate;
-
-				// AABB設定
-				block.aabb.min = { pos.x - mapChip_->kBlockWidth / 2.0f, pos.y - mapChip_->kBlockHeight / 2.0f, pos.z - mapChip_->kBlockWidth / 2.0f };
-				block.aabb.max = { pos.x + mapChip_->kBlockWidth / 2.0f, pos.y + mapChip_->kBlockHeight / 2.0f, pos.z + mapChip_->kBlockWidth / 2.0f };
-				block.isActive = true;
-				block.type = mapChip_->GetMapChipTypeByIndex(x, y);
-			}
-		}
-	}
-
-	// ブロック統合処理 
-	auto FixAABB = [](AABB& aabb) {
-		if (aabb.min.x > aabb.max.x)
-			std::swap(aabb.min.x, aabb.max.x);
-		if (aabb.min.y > aabb.max.y)
-			std::swap(aabb.min.y, aabb.max.y);
-		if (aabb.min.z > aabb.max.z)
-			std::swap(aabb.min.z, aabb.max.z);
-		};
-
-	mergedBlocks_.clear();
-	for (uint32_t i = 0; i < numBlockVirtical; ++i) {
-		bool merging = false;
-		AABB mergedAABB{};
-		MapChipType currentType{};
-
-		for (uint32_t j = 0; j < numBlockHorizontal; ++j) {
-			const Block& block = blocks_[i][j];
-
-			if (block.isActive) {
-				if (!merging) {
-					mergedAABB = block.aabb;
-					currentType = block.type;
-					merging = true;
-				}
-				// タイプが同じなら統合
-				else if (block.type == currentType) {
-					mergedAABB.max.x = block.aabb.max.x;
-				}
-				// タイプが違うなら確定
-				else {
-					mergedBlocks_.push_back({ mergedAABB, currentType });
-					mergedAABB = block.aabb;
-					currentType = block.type;
-				}
-			} else if (merging) {
-				mergedBlocks_.push_back({ mergedAABB, currentType });
-				merging = false;
-			}
-		}
-
-		if (merging) {
-			mergedBlocks_.push_back({ mergedAABB, currentType });
-		}
-	}
-}
-void GameScene::CheckCollisionPlayerAndBlocks(AxisXYZ axis)
-{
-	AABB playerAABB = player_->GetAABB();
-	Vector3 playerPos = player_->GetWorldPosition();
-	Vector3 velocity = player_->GetMove();
-
-	const float kEpsilon = 0.01f;
-
-	for (const MergedBlock& block : mergedBlocks_) {
-
-		if (!IsCollision(playerAABB, block.aabb)) {
-			continue;
-		}
-
-		// ダメージ床
-		if (block.type == MapChipType::kDamageBlock) {
-			//if (!enemy_->IsDead()) {
-			//	player_->Damage();
-			//}
-		}
-
-		Vector3 overlap = {
-			std::min(playerAABB.max.x, block.aabb.max.x) - std::max(playerAABB.min.x, block.aabb.min.x),
-			std::min(playerAABB.max.y, block.aabb.max.y) - std::max(playerAABB.min.y, block.aabb.min.y),
-			0.0f
-		};
-
-		// --------------------
-		// X方向衝突
-		// --------------------
-		if (axis == X) {
-			if (playerAABB.min.x < block.aabb.min.x) {
-				playerPos.x -= overlap.x + kEpsilon;
-			} else {
-				playerPos.x += overlap.x + kEpsilon;
-			}
-			velocity.x = 0.0f;
-		}
-
-		// --------------------
-		// Y方向衝突
-		// --------------------
-		if (axis == Y) {
-			if (playerAABB.min.y < block.aabb.min.y) {
-				// 下から上に押し戻された = 着地
-				playerPos.y -= overlap.y + kEpsilon;
-
-			} else {
-				// 天井ヒット
-				playerPos.y += overlap.y + kEpsilon;
-				player_->SetOnGround(true);
-			}
-			velocity.y = 0.0f;
-		}
-
-		player_->SetWorldPosition(playerPos);
-		player_->SetVelocity(velocity);
-		playerAABB = player_->GetAABB();
-	}
-}
-/*
-bool GameScene::CheckCollisionEnemyAndBlocks(AxisXYZ axis) {
-
-	AABB enemyAABB = enemy_->GetAABB();
-	Vector3 enemyPos = enemy_->GetWorldPosition();
-	const float kEpsilon = 0.01f;
-	bool hit = false;
-
-	for (const MergedBlock& block : mergedBlocks_) {
-
-		if (!IsCollision(enemyAABB, block.aabb)) {
-			continue;
-		}
-
-		hit = true;
-
-		Vector3 overlap = {
-			std::min(enemyAABB.max.x, block.aabb.max.x) - std::max(enemyAABB.min.x, block.aabb.min.x),
-			std::min(enemyAABB.max.y, block.aabb.max.y) - std::max(enemyAABB.min.y, block.aabb.min.y),
-			0.0f
-		};
-
-		if (axis == X) {
-			enemyPos.x += (enemyAABB.min.x < block.aabb.min.x)
-				? -(overlap.x + kEpsilon)
-				: +(overlap.x + kEpsilon);
-		} else if (axis == Y) {
-			enemyPos.y += (enemyAABB.min.y < block.aabb.min.y)
-				? -(overlap.y + kEpsilon)
-				: +(overlap.y + kEpsilon);
-		}
-
-		enemy_->SetWorldPosition(enemyPos);
-		enemyAABB = enemy_->GetAABB();
-	}
-
-	return hit;
-}*/
-
-void GameScene::CheckCollisionBulletsAndBlocks() {
-
-	auto bullets = player_->GetBulletPtrs();
-
-	for (PlayerBullet* bullet : bullets) {
-		if (!bullet) continue;
-
-		Vector3 bulletPos = bullet->GetWorldPosition();
-		float radius = bullet->GetRadius();
-		Sphere bulletSphere{ bulletPos, radius };
-
-		bool isCollided = false;
-		float nearestDist = std::numeric_limits<float>::max();
-		Vector3 nearestClosestPoint{};
-		Vector3 nearestNormal{};
-
-		for (const auto& block : mergedBlocks_) {
-
-			if (!IsCollision(block.aabb, bulletSphere)) continue;
-
-			Vector3 closestPoint{
-				std::clamp(bulletSphere.center.x, block.aabb.min.x, block.aabb.max.x),
-				std::clamp(bulletSphere.center.y, block.aabb.min.y, block.aabb.max.y),
-				std::clamp(bulletSphere.center.z, block.aabb.min.z, block.aabb.max.z)
-			};
-
-			Vector3 normal = bulletSphere.center - closestPoint;
-			normal.z = 0.0f;
-			if (Length(normal) < 0.0001f) continue;
-			normal = Normalize(normal);
-
-			float dist = Length(bulletSphere.center - closestPoint);
-			if (dist < nearestDist) {
-				nearestDist = dist;
-				nearestClosestPoint = closestPoint;
-				nearestNormal = normal;
-				isCollided = true;
-			}
-		}
-
-		if (isCollided) {
-			bulletPos = nearestClosestPoint + nearestNormal * (radius + 0.01f);
-
-			Vector3 vel = bullet->GetMove();
-			vel = vel - 2.0f * Dot(vel, nearestNormal) * nearestNormal;
-
-			bullet->SetVelocity(vel);
-			bullet->SetWorldPosition(bulletPos);
-		}
-	}
-}
-//
-//void GameScene::CheckCollisionEnemyBulletsAndBlocks() {
-//
-//	auto bullets = enemy_->GetBulletPtrs();
-//
-//	for (EnemyBullet* bullet : bullets) {
-//		if (!bullet) continue;
-//
-//		Vector3 bulletPos = bullet->GetWorldPosition();
-//		float radius = bullet->GetRadius();
-//		Sphere bulletSphere{ bulletPos, radius };
-//
-//		bool isCollided = false;
-//		float nearestDist = std::numeric_limits<float>::max();
-//		Vector3 nearestClosestPoint{};
-//		Vector3 nearestNormal{};
-//
-//		for (const auto& block : mergedBlocks_) {
-//
-//			if (!IsCollision(block.aabb, bulletSphere)) continue;
-//
-//			Vector3 closestPoint{
-//				std::clamp(bulletSphere.center.x, block.aabb.min.x, block.aabb.max.x),
-//				std::clamp(bulletSphere.center.y, block.aabb.min.y, block.aabb.max.y),
-//				std::clamp(bulletSphere.center.z, block.aabb.min.z, block.aabb.max.z)
-//			};
-//
-//			Vector3 normal = bulletSphere.center - closestPoint;
-//			normal.z = 0.0f;
-//			if (Length(normal) < 0.0001f) continue;
-//			normal = Normalize(normal);
-//
-//			float dist = Length(bulletSphere.center - closestPoint);
-//			if (dist < nearestDist) {
-//				nearestDist = dist;
-//				nearestClosestPoint = closestPoint;
-//				nearestNormal = normal;
-//				isCollided = true;
-//			}
-//		}
-//
-//		if (isCollided) {
-//			bulletPos = nearestClosestPoint + nearestNormal * (radius + 0.01f);
-//
-//			Vector3 vel = bullet->GetMove();
-//			vel = vel - 2.0f * Dot(vel, nearestNormal) * nearestNormal;
-//
-//			bullet->SetVelocity(vel);
-//			bullet->SetWorldPosition(bulletPos);
-//		}
-//	}
-//}
-
-const std::vector<std::vector<Block>>& GameScene::GetBlocks() const {
-	return blocks_;
 }

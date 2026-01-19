@@ -1,14 +1,16 @@
 #include "CollisionManager.h"
 #include "Enemy.h"
 #include "Player.h"
+#include "Bullet.h"
+#include "BulletManager.h"
 
-void CollisionManager::CheckAllCollisions(Player* player, Enemy* enemy) {
+void CollisionManager::CheckAllCollisions(Player* player, Enemy* enemy, BulletManager* bulletManager) {
 
 	// 衝突マネージャのリストをクリア
 	colliders_.clear();
 
 	// コライダーをリストに登録
-	SetColliders(player, enemy);
+	SetColliders(player, enemy, bulletManager);
 	
 	// リスト内のペアの総当たり
 	std::list<Collider*>::iterator itrA = colliders_.begin();
@@ -64,21 +66,21 @@ void CollisionManager::CheckCollisionPair(Collider* colliderA, Collider* collide
 	colliderB->OnCollision(colliderA);
 }
 
-void CollisionManager::SetColliders(Player* player, Enemy* enemy) {
+void CollisionManager::SetColliders(Player* player, Enemy* enemy, BulletManager* bulletManager) {
 
 	// プレイヤーを登録
 	colliders_.push_back(player);
 
+	// プレイヤードローンを登録
+	for (PlayerDrone* drone : player->GetDronePtrs()) {
+		colliders_.push_back(drone);
+	}
+
 	// 敵を登録
 	colliders_.push_back(enemy);
 
-	// プレイヤーの弾を登録
-	for (PlayerBullet* bullet : player->GetBulletPtrs()) {
-		colliders_.push_back(bullet);
-	}
-
-	// 敵の弾を登録
-	for (EnemyBullet* bullet : enemy->GetBulletPtrs()) {
+	// 弾を登録
+	for (Bullet* bullet : bulletManager->GetBulletPtrs()) {
 		colliders_.push_back(bullet);
 	}
 }

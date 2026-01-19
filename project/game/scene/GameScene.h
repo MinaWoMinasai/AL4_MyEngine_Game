@@ -11,24 +11,11 @@
 #include "Model.h"
 #include "ModelManager.h"
 #include "SrvManager.h"
-#include "Player.h"
-#include "Enemy.h"
 #include "CollisionManager.h"
 #include "MapChip.h"
 #include "Fade.h"
-
-struct MergedBlock {
-	AABB aabb;
-	MapChipType type;
-};
-
-struct Block {
-	Transform worldTransform;
-	std::unique_ptr<Object3d> object;
-	AABB aabb;
-	bool isActive = false;
-	MapChipType type;
-};
+#include "Stage.h"
+#include "BulletManager.h"
 
 // ゲームシーン
 class GameScene {
@@ -65,31 +52,6 @@ public:
 	/// </summary>
 	void DrawSprite();
 
-	/// <summary>
-	/// マップチップの生成
-	/// </summary>
-	void GenerateBlocks();
-
-	/// <summary>
-	/// プレイヤーとブロックの当たり判定
-	/// </summary>
-	void CheckCollisionPlayerAndBlocks(AxisXYZ axis);
-
-	/// <summary>
-	/// 敵とブロックの当たり判定
-	/// </summary>
-	/// <param name="axis"></param>
-	//bool CheckCollisionEnemyAndBlocks(AxisXYZ axis);
-
-	/// <summary>
-	/// 敵の弾とブロックの当たり判定
-	/// </summary>
-	void CheckCollisionBulletsAndBlocks();
-
-	const std::vector<std::vector<Block>>& GetBlocks() const;
-
-	//void CheckCollisionEnemyBulletsAndBlocks();
-
 	bool IsFinished() const { return finished_; }
 
 private:
@@ -114,19 +76,16 @@ private:
 	std::unique_ptr<Player> player_;
 
 	// 敵
-	//std::unique_ptr<Enemy> enemy_;
+	std::unique_ptr<Enemy> enemy_;
+
+	// ステージ
+	std::unique_ptr<Stage> stage_;
+
+	// 弾マネージャ
+	std::unique_ptr<BulletManager> bulletManager_;
 
 	// 衝突マネージャ
 	std::unique_ptr<CollisionManager> collisionManager_;
-
-	// ブロック用のワールドトランスフォーム
-	std::vector<std::vector<Block>> blocks_;
-	// マップチップ
-	std::unique_ptr<MapChip> mapChip_ = nullptr;
-
-	size_t currentLineIndex_ = 0;
-
-	std::vector<MergedBlock> mergedBlocks_;
 
 	// 終了フラグ
 	bool finished_ = false;

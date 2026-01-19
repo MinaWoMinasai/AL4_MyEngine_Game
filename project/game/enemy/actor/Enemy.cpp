@@ -2,7 +2,7 @@
 #include "Calculation.h"
 #include "Player.h"
 #include <DirectXMath.h>
-#include "GameScene.h"
+#include "Stage.h"
 using namespace DirectX;
 
 static constexpr float kDeltaTime = 1.0f / 60.0f;
@@ -32,82 +32,57 @@ void Enemy::Fire() {
 		return;
 	}
 
-	auto bullet = std::make_unique<EnemyBullet>();
-	bullet->Initialize(direction * 3.0f + worldTransform_.translate, direction);
+	AttackParam attackParam;
+	attackParam.bulletSpeed = kBulletSpeed;
+	attackParam.bulletCount = 1;
+	attackParam.spreadAngleDeg = 0.0f;
 
-	bullets_.push_back(std::move(bullet));
 
+	attackController_.Fire(
+		worldTransform_.translate,
+		direction,
+		attackParam,
+		BulletOwner::kEnemy
+	);
 }
 
-void Enemy::ShotgunFire(int bulletCount, float spreadAngleDeg,float bulletSpeed, bool randam) {
+void Enemy::ShotgunFire()
+{
 	assert(player_);
 
-	// 自キャラと敵の位置
-	Vector3 playerPos = player_->GetWorldPosition();
-	Vector3 enemyPos = GetWorldPosition();
+	// 発射位置
+	Vector3 origin = GetWorldPosition();
 
-	// プレイヤー方向の基準ベクトル
+	// 基準方向
 	Vector3 baseDir;
-	if (randam) {
-		baseDir = playerPos - enemyPos;
-		baseDir = Normalize(baseDir);
-	} else {
-		baseDir = (enemyPos + Vector3(-10.0f, 0.0f, 0.0f)) - enemyPos;
-		baseDir = Normalize(baseDir);
-	}
-	// 中心角度（散弾のうち真ん中の弾の角度）
-	float halfSpread = spreadAngleDeg * 0.5f;
+	//if (random_) {
+		baseDir = Normalize(player_->GetWorldPosition() - origin);
+	//} else {
+	//	baseDir = Normalize(Vector3(-1.0f, 0.0f, 0.0f)); // 左固定など
+	//}
 
-	// 弾をランダムか規則的に発射する
-	if (randam) {
+	// 攻撃パラメータを設定
+	AttackParam param{};
+	param.bulletSpeed = 0.3f;
+	param.bulletCount = 1;
+	param.spreadAngleDeg = 45.0f;
+	param.randomSpread = true;
 
-		for (int i = 0; i < bulletCount; ++i) {
-			// 弾ごとの角度オフセット（左から右へ等間隔）
-			float angleOffset = Rand(-halfSpread, halfSpread);
+	param.reflect = true;
+	param.penetrate = false;
+	param.cooldown = 1.0f;
+	param.damage = 10;
 
-			// 回転行列で方向を回す（Z軸周りに回転する2D前提）
-			float rad = XMConvertToRadians(angleOffset);
-			Vector3 dirRotated;
-			dirRotated.x = baseDir.x * cosf(rad) - baseDir.y * sinf(rad);
-			dirRotated.y = baseDir.x * sinf(rad) + baseDir.y * cosf(rad);
-			dirRotated.z = baseDir.z; // 2Dならzは固定
-
-			// 速度を掛ける
-			Vector3 velocity = bulletSpeed * dirRotated;
-
-			auto bullet = std::make_unique<EnemyBullet>();
-			bullet->Initialize(dirRotated * 3.0f + worldTransform_.translate, velocity);
-
-			bullets_.push_back(std::move(bullet));
-		}
-
-	} else {
-
-		for (int i = 0; i < bulletCount; ++i) {
-			// 弾ごとの角度オフセット（左から右へ等間隔）
-			float angleOffset = -halfSpread + (spreadAngleDeg / (bulletCount - 1)) * i;
-
-			// 回転行列で方向を回す（Z軸周りに回転する2D前提）
-			float rad = XMConvertToRadians(angleOffset);
-			Vector3 dirRotated;
-			dirRotated.x = baseDir.x * cosf(rad) - baseDir.y * sinf(rad);
-			dirRotated.y = baseDir.x * sinf(rad) + baseDir.y * cosf(rad);
-			dirRotated.z = baseDir.z; // 2Dならzは固定
-
-			// 速度を掛ける
-			Vector3 velocity = bulletSpeed * dirRotated;
-
-			// 弾を生成
-			auto bullet = std::make_unique<EnemyBullet>();
-			bullet->Initialize(dirRotated * 3.0f + worldTransform_.translate, velocity);
-
-			bullets_.push_back(std::move(bullet));
-
-		}
-	}
+	// 発射
+	attackController_.Fire(
+		origin,
+		baseDir,
+		param,
+		BulletOwner::kEnemy
+	);
 }
 
-void Enemy::Initialize(Object3d* object, const Vector3& position, GameScene* gameScene) {
+void Enemy::Initialize(Object3d* object, const Vector3& position, Stage* stage) {
 
 	object_ = object;
 	worldTransform_ = InitWorldTransform();
@@ -117,9 +92,9 @@ void Enemy::Initialize(Object3d* object, const Vector3& position, GameScene* gam
 	// 衝突属性を設定
 	SetCollisionAttribute(kCollisionAttributeEnemy);
 	// 衝突対象をプレイヤーとプレイヤーの弾に設定
-	SetCollisionMask(kCollisionAttributePlayer | kCollisionAttributePlayerBullet);
+	SetCollisionMask(kCollisionAttributePlayer | kCollisionAttributePlayerBullet | kCollisionAttributePlayerDrone);
 
-	gameScene_ = gameScene;
+	stage_ = stage;
 	
 	sprite = std::make_unique<Sprite>();
 	sprite->Initialize(SpriteCommon::GetInstance(), "resources/bossHPGreen.png");
@@ -144,8 +119,7 @@ void Enemy::Update() {
 		if (HasLineOfSightToPlayer()) {
 			fireTimer_ -= 1.0f / 60.0f;
 			if (fireTimer_ <= 0) {
-				//Fire();
-				ShotgunFire(1, 30.0f, 0.2f, true);
+				ShotgunFire();
 				fireTimer_ = kFireTimerMax_;
 			}
 		} else {
@@ -155,21 +129,20 @@ void Enemy::Update() {
 				fireTimer_ += 1.0f / 60.0f;
 			}
 		}
-
-		for (auto& bullet : bullets_) {
-			bullet->Update();
-		}
-
-		bullets_.erase(
-			std::remove_if(
-				bullets_.begin(),
-				bullets_.end(),
-				[](const std::unique_ptr<EnemyBullet>& bullet) {
-					return bullet->IsDead();
-				}),
-			bullets_.end());
 	}
-	
+
+	// X移動
+	Vector3 pos = GetWorldPosition();
+	pos.x += GetMove().x;
+	SetWorldPosition(pos);
+	stage_->ResolveEnemyCollision(*this, X);
+
+	// Y移動
+	pos = GetWorldPosition();
+	pos.y += GetMove().y;
+	SetWorldPosition(pos);
+	stage_->ResolveEnemyCollision(*this, Y);
+
 	object_->SetTransform(worldTransform_);
 	object_->Update();
 
@@ -190,10 +163,6 @@ void Enemy::Update() {
 void Enemy::Draw() {
 	if (!isDead_) {
 		object_->Draw();
-	}
-
-	for (auto& bullet : bullets_) {
-		bullet->Draw();
 	}
 
 	for (auto& p : particles_) {
@@ -230,27 +199,17 @@ Vector3 Enemy::GetWorldPosition() const {
 	return worldPos;
 }
 
-std::vector<EnemyBullet*> Enemy::GetBulletPtrs()
-{
-	std::vector<EnemyBullet*> result;
-	result.reserve(bullets_.size());
-	for (const auto& b : bullets_) {
-		result.push_back(b.get());
-	}
-	return result;
-}
-
 void Enemy::OnCollision(Collider* other) {
 	
 	// つみとバグ防止
-	if (other->GetCollisionAttribute() == kCollisionAttributePlayer) {
+	if (other->GetCollisionAttribute() == kCollisionAttributePlayer || other->GetCollisionAttribute() == kCollisionAttributePlayerDrone) {
 		Vector3 dir = worldTransform_.translate - other->GetWorldPosition();
 
 		if (Length(dir) < 0.001f) return;
 
 		dir = Normalize(dir);
 
-		const float knockPower = 1.0f;
+		const float knockPower = 2.0f;
 
 		velocity_ += dir * knockPower * other->GetHitPower();
 	}
@@ -352,7 +311,13 @@ Vector3 Enemy::RandomDirection() { return Rand(Vector3(-0.2f, -0.2f, 0.0f), Vect
 Vector3 Enemy::EvadeBullets() {
 	Vector3 evade(0, 0, 0);
 
-	for (PlayerBullet* bullet : player_->GetBulletPtrs()) {
+	for (Bullet* bullet : bulletManager_->GetBulletPtrs()) {
+
+		// 敵の弾は無視
+		if (bullet->GetCollisionAttribute() == kCollisionAttributeEnemyBullet) {
+			continue;
+		}
+
 		Vector3 toBullet = bullet->GetWorldPosition() - GetWorldPosition();
 		float dist = Length(toBullet);
 
@@ -377,7 +342,13 @@ void Enemy::UpdateAIState() {
 
 	// プレイヤー弾の危険判定
 	bool bulletDanger = false;
-	for (PlayerBullet* bullet : player_->GetBulletPtrs()) {
+	for (Bullet* bullet : bulletManager_->GetBulletPtrs()) {
+		
+		// 敵の弾は無視
+		if (bullet->GetCollisionAttribute() == kCollisionAttributeEnemyBullet) {
+			continue;
+		}
+
 		float distB = Length(bullet->GetWorldPosition() - GetWorldPosition());
 		if (distB < 8.0f) {
 			bulletDanger = true;
@@ -435,7 +406,7 @@ bool Enemy::IsBlockNearByRay() {
 
 	Segment ray = MakeForwardRay(kRayLength);
 	
-	for (const auto& row : gameScene_->GetBlocks()) {
+	for (const auto& row : stage_->GetBlocks()) {
 		for (const Block& block : row) {
 
 			if (!block.isActive) {
@@ -528,7 +499,7 @@ bool Enemy::HasLineOfSightToPlayer() {
 	}
 
 	// 手前に壁がある？
-	for (const auto& row : gameScene_->GetBlocks()) {
+	for (const auto& row : stage_->GetBlocks()) {
 		for (const Block& block : row) {
 
 			if (!block.isActive) {
@@ -559,7 +530,7 @@ void Enemy::Die()
 	isExploding_ = true;
 
 	SpawnParticles();
-	bullets_.clear();
+	//bullets_.clear();
 
 	radius_ = 0.0f;
 }
