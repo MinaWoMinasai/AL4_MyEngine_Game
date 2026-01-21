@@ -4,6 +4,16 @@
 
 std::mt19937 rng(std::random_device{}());
 
+Vector2 Add(const Vector2& v1, const Vector2& v2)
+{
+
+	Vector2 result;
+	result.x = v1.x + v2.x;
+	result.y = v1.y + v2.y;
+
+	return result;
+}
+
 Vector3 Add(const Vector3& v1, const Vector3& v2) {
 
 	Vector3 result;
@@ -22,6 +32,15 @@ Vector4 Add(const Vector4& v1, const Vector4& v2)
 	result.y = v1.y + v2.y;
 	result.z = v1.z + v2.z;
 	result.w = v1.w + v2.w;
+
+	return result;
+}
+
+Vector2 Subtract(const Vector2& v1, const Vector2& v2)
+{
+	Vector2 result;
+	result.x = v1.x - v2.x;
+	result.y = v1.y - v2.y;
 
 	return result;
 }
@@ -48,6 +67,17 @@ Vector4 Subtract(const Vector4& v1, const Vector4& v2)
 	//result.w = v1.w - v2.w;
 
 	return result;
+}
+
+Vector2 Multiply(float scalar, const Vector2& v)
+{
+
+	Vector2 result;
+	result.x = scalar * v.x;
+	result.y = scalar * v.y;
+	
+	return result;
+
 }
 
 Vector3 Multiply(float scalar, const Vector3& v) {
@@ -981,4 +1011,63 @@ Vector3 SlideLeft(const Vector3& dir) {
 
 Vector3 SlideRight(const Vector3& dir) {
 	return Normalize(Vector3(dir.y, -dir.x, 0.0f));
+}
+
+CollisionResult CheckSphereVsOBB(const Sphere& s, const OBB& o)
+{
+	CollisionResult r{};
+	r.hit = false;
+
+	// OBBローカル空間へ
+	Vector3 d = s.center - o.center;
+
+	Vector3 local{
+		Dot(d, o.orientation[0]),
+		Dot(d, o.orientation[1]),
+		Dot(d, o.orientation[2])
+	};
+
+	// 最近接点
+	Vector3 closest{
+		std::clamp(local.x, -o.halfExtents.x, o.halfExtents.x),
+		std::clamp(local.y, -o.halfExtents.y, o.halfExtents.y),
+		std::clamp(local.z, -o.halfExtents.z, o.halfExtents.z)
+	};
+
+	Vector3 diff = local - closest;
+	
+	float distSq = Dot(diff, diff);
+
+	if (distSq > s.radius * s.radius) {
+		return r;
+	}
+
+	float dist = sqrt(distSq);
+	r.hit = true;
+	r.depth = s.radius - dist;
+
+	Vector3 normalLocal =
+		(dist > 0.0001f) ? diff / dist : Vector3(0, 1, 0);
+
+	// ワールドへ
+	r.normal =
+		o.orientation[0] * normalLocal.x +
+		o.orientation[1] * normalLocal.y +
+		o.orientation[2] * normalLocal.z;
+
+	return r;
+}
+
+Vector2 RotateAround(
+	const Vector2& point,
+	const Vector2& pivot,
+	float rad
+) {
+	Vector2 p = point - pivot;
+
+	Vector2 r;
+	r.x = p.x * cosf(rad) - p.y * sinf(rad);
+	r.y = p.x * sinf(rad) + p.y * cosf(rad);
+
+	return pivot + r;
 }

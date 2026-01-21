@@ -71,6 +71,17 @@ void Player::DroneShoot(BulletManager* BulletManager)
 	//}
 }
 
+Sphere Player::GetSphere() const
+{
+	Sphere s{};
+	s.center = GetWorldPosition();
+
+	// 半径は「横幅基準」が安定
+	s.radius = kRadius;
+
+	return s;
+}
+
 void Player::RotateToMouse(Camera* viewProjection) {
 	// --- 1. マウス座標取得 ---
 	POINT mousePosition;
@@ -142,45 +153,85 @@ void Player::Initialize(Object3d* object, const Vector3& position) {
 
 void Player::Update(Camera* viewProjection, Stage& stage, BulletManager* BulletManager)
 {
+	float dt = 1.0f / 60.0f;
+
 	invincibleTimer_ -= 1.0f / 60.0f;
 
+	// ----------------------
+	// 横入力
+	// ----------------------
 	RotateToMouse(viewProjection);
 	inputDir_ = { 0,0,0 };
+
+	//if (input_->IsPress(input_->GetKey()[DIK_A])) inputDir_.x -= 1.0f;
+	//if (input_->IsPress(input_->GetKey()[DIK_D])) inputDir_.x += 1.0f;
+	//
+	//// ----------------------
+	//// 横移動（加速・減速）
+	//// ----------------------
+	//float targetSpeedX = inputDir_.x * maxSpeed_;
+	//float accel = (fabs(inputDir_.x) > 0.0f) ? accel_ : decel_;
+	//
+	//velocity_.x += (targetSpeedX - velocity_.x) * accel * dt;
+	//
+	//// ----------------------
+	//// ジャンプ
+	//// ----------------------
+	//if (isOnGround_ && input_->IsTrigger(input_->GetKey()[DIK_SPACE], input_->GetPreKey()[DIK_SPACE])) {
+	//	velocity_.y = jumpPower_;
+	//	isOnGround_ = false;
+	//}
+	//
+	//// ----------------------
+	//// 重力
+	//// ----------------------
+	//velocity_.y += gravity_ * dt;
 
 	if (input_->IsPress(input_->GetKey()[DIK_A])) inputDir_.x -= 1.0f;
 	if (input_->IsPress(input_->GetKey()[DIK_D])) inputDir_.x += 1.0f;
 	if (input_->IsPress(input_->GetKey()[DIK_W])) inputDir_.y += 1.0f;
 	if (input_->IsPress(input_->GetKey()[DIK_S])) inputDir_.y -= 1.0f;
-
+	
 	if (Length(inputDir_) > 1.0f) {
 		inputDir_ = Normalize(inputDir_);
 	}
-
+	
 	// --- 目標速度 ---
 	Vector3 targetVelocity = inputDir_ * maxSpeed_;
-
+	
 	// --- 慣性処理 ---
-	float dt = 1.0f / 60.0f;
 	float accel = (Length(inputDir_) > 0.0f) ? accel_ : decel_;
-
+	
 	velocity_ += (targetVelocity - velocity_) * accel * dt;
 
-	// X軸移動
-	Vector3 playerPos = GetWorldPosition();
-	playerPos.x += GetMove().x;
-	SetWorldPosition(playerPos);
-	stage.ResolvePlayerCollision(*this, X);
+	//// X軸移動
+	//Vector3 playerPos = GetWorldPosition();
+	//playerPos.x += GetMove().x;
+	//SetWorldPosition(playerPos);
+	//stage.ResolvePlayerCollision(*this, X);
+	//
+	//// Y軸移動
+	//playerPos = GetWorldPosition();
+	//playerPos.y += GetMove().y;
+	//SetWorldPosition(playerPos);
+	//stage.ResolvePlayerCollision(*this, Y);
 
-	// Y軸移動
-	playerPos = GetWorldPosition();
-	playerPos.y += GetMove().y;
-	SetWorldPosition(playerPos);
-	stage.ResolvePlayerCollision(*this, Y);
+	// Y移動
+	Vector3 pos = GetWorldPosition();
+	pos.y += velocity_.y;
+	SetWorldPosition(pos);
+	stage.ResolvePlayerCollisionSphereY(*this);
+
+	// X移動
+	pos = GetWorldPosition();
+	pos.x += velocity_.x;
+	SetWorldPosition(pos);
+	stage.ResolvePlayerCollisionSphereX(*this);
 
 	// object_ の更新だけ（移動はしない）
 	object_->SetTransform(worldTransform_);
 	object_->Update();
-
+	
 	if (!isDead_) {
 		// 攻撃処理
 		//Attack();

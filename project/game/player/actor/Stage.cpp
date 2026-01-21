@@ -7,7 +7,56 @@ void Stage::Initialize() {
 	GenerateBlocks();
 }
 
-void Stage::Update() {}
+void Stage::Update() {
+	//Vector2 orbitCenter = { 15.0f, 15.0f };
+	//float orbitSpeed = 1.0f;
+	//float dt = 1.0f / 600.0f;
+	//
+	//dt_ += dt;
+	//if (dt_ >= 0.8f) {
+	//	return;
+	//}
+
+	//for (auto& line : blocks_) {
+	//	for (Block& block : line) {
+	//		if (!block.isActive) continue;
+	//
+	//		// 角度更新
+	//		block.orbitAngle += orbitSpeed * dt;
+	//
+	//		// 公転（XY平面）
+	//		Vector2 p = {
+	//			block.originalPos.x - orbitCenter.x,
+	//			block.originalPos.y - orbitCenter.y
+	//		};
+	//
+	//		float c = cosf(block.orbitAngle);
+	//		float s = sinf(block.orbitAngle);
+	//
+	//		Vector2 rotated = {
+	//			p.x * c - p.y * s,
+	//			p.x * s + p.y * c
+	//		};
+	//
+	//		// OBB center 更新
+	//		block.obb.center.x = orbitCenter.x + rotated.x;
+	//		block.obb.center.y = orbitCenter.y + rotated.y;
+	//		block.obb.center.z = block.originalPos.z;
+	//		float rad = block.orbitAngle;
+
+	//		// 公転に追従する回転（Z軸）
+	//		block.obb.orientation[0] = { cosf(rad), sinf(rad), 0 };
+	//		block.obb.orientation[1] = { -sinf(rad), cosf(rad), 0 };
+	//		block.obb.orientation[2] = { 0, 0, 1 };
+
+	//		// 見た目も追従
+	//		block.worldTransform.translate = block.obb.center;
+	//		block.object->SetTransform(block.worldTransform);
+	//		block.object->SetRotate({ 0,0,rad });
+	//		block.object->Update();
+	//	}
+	//}
+}
 
 void Stage::Draw() {
 	for (auto& line : blocks_) {
@@ -55,6 +104,30 @@ void Stage::GenerateBlocks() {
 				// AABB設定
 				block.aabb.min = { pos.x - mapChip_->kBlockWidth / 2.0f, pos.y - mapChip_->kBlockHeight / 2.0f, pos.z - mapChip_->kBlockWidth / 2.0f };
 				block.aabb.max = { pos.x + mapChip_->kBlockWidth / 2.0f, pos.y + mapChip_->kBlockHeight / 2.0f, pos.z + mapChip_->kBlockWidth / 2.0f };
+				
+				// OBB設定
+				block.originalPos = pos;
+				block.obb.center = pos;
+				
+				block.obb.halfExtents = {
+					mapChip_->kBlockWidth * 0.5f,
+					mapChip_->kBlockHeight * 0.5f,
+					mapChip_->kBlockWidth * 0.5f
+				};
+				float rad = 45.0f * (3.14159265f / 180.0f);
+
+				//block.obb.orientation[0] = { cosf(rad), sinf(rad), 0 };
+				//block.obb.orientation[1] = { -sinf(rad), cosf(rad), 0 };
+				//block.obb.orientation[2] = { 0, 0, 1 };
+				
+				// オブジェクトも回転を合わせる
+				//block.object->SetRotate({ 0, 0, rad });
+				//block.object->Update();
+
+				//// 軸はワールド基準（今は回さない）
+				block.obb.orientation[0] = { 1, 0, 0 };
+				block.obb.orientation[1] = { 0, 1, 0 };
+				block.obb.orientation[2] = { 0, 0, 1 };
 				block.isActive = true;
 				block.type = mapChip_->GetMapChipTypeByIndex(x, y);
 			}
@@ -156,6 +229,7 @@ void Stage::ResolvePlayerCollision(Player& player, AxisXYZ axis)
 				playerPos.y -= overlap.y + kEpsilon;
 			} else {
 				playerPos.y += overlap.y + kEpsilon;
+				player.SetOnGround(true);
 			}
 			velocity.y = 0.0f;
 		}
@@ -318,6 +392,124 @@ void Stage::ResolveBulletsCollision(const std::vector<Bullet*>& bullets)
 	}
 }
 
+void Stage::ResolvePlayerCollisionSphere(Player& player)
+{
+	Sphere sphere = player.GetSphere();
+	Vector3 pos = sphere.center;
+	Vector3 vel = player.GetMove();
+
+	for (const auto& line : blocks_) {
+		for (const Block& block : line) {
+			if (!block.isActive) continue;
+
+			// ここで Sphere vs OBB
+			CollisionResult hit =
+				CheckSphereVsOBB(sphere, block.obb);
+
+			if (!hit.hit) continue;
+
+			// 押し戻し
+			pos += hit.normal * hit.depth;
+
+			// 法線方向の速度を消す（滑らない）
+			float vn = Dot(vel, hit.normal);
+			if (vn < 0.0f) {
+				vel -= hit.normal * vn;
+			}
+
+			// 接地判定
+			if (Dot(hit.normal, Vector3(0, 1, 0)) > 0.7f) {
+				player.SetOnGround(true);
+			}
+
+			// 更新
+			sphere.center = pos;
+		}
+	}
+
+	player.SetWorldPosition(pos);
+	player.SetVelocity(vel);
+}
+
+void Stage::ResolvePlayerCollisionSphereY(Player& player)
+{
+	Sphere sphere = player.GetSphere();
+	Vector3 pos = sphere.center;
+	Vector3 vel = player.GetMove();
+
+	//player.SetOnGround(false);
+
+	for (const auto& line : blocks_) {
+		for (const Block& block : line) {
+			if (!block.isActive) continue;
+
+			CollisionResult hit = CheckSphereVsOBB(sphere, block.obb);
+			if (!hit.hit) continue;
+
+			float upDot = Dot(hit.normal, Vector3(0, 1, 0));
+
+			// ほぼ床 or 天井として扱える場合
+			if (upDot > 0.7f || upDot < -0.7f) {
+
+				// 押し戻し（Y成分だけ）
+				pos.y += hit.normal.y * hit.depth;
+
+				// Y方向の速度を止める
+				if (vel.y * hit.normal.y < 0.0f) {
+					vel.y = 0.0f;
+				}
+
+				// 接地判定（床のみ）
+				//if (upDot > 0.7f) {
+				//	player.SetOnGround(true);
+				//}
+
+				sphere.center = pos;
+			}
+		}
+	}
+
+	player.SetWorldPosition(pos);
+	player.SetVelocity(vel);
+}
+void Stage::ResolvePlayerCollisionSphereX(Player& player)
+{
+	Sphere sphere = player.GetSphere();
+	Vector3 pos = sphere.center;
+	Vector3 vel = player.GetMove();
+
+	for (const auto& line : blocks_) {
+		for (const Block& block : line) {
+			if (!block.isActive) continue;
+
+			CollisionResult hit = CheckSphereVsOBB(sphere, block.obb);
+			if (!hit.hit) continue;
+
+			// 横成分のみ使う
+			Vector3 lateralNormal = hit.normal;
+			lateralNormal.y = 0.0f;
+
+			float lenSq = Dot(lateralNormal, lateralNormal);
+			if (lenSq < 0.0001f) continue;
+
+			lateralNormal = Normalize(lateralNormal);
+
+			// 押し戻し（X方向）
+			pos += lateralNormal * hit.depth;
+
+			// 横速度を止める
+			float vn = Dot(vel, lateralNormal);
+			if (vn < 0.0f) {
+				vel -= lateralNormal * vn;
+			}
+
+			sphere.center = pos;
+		}
+	}
+
+	player.SetWorldPosition(pos);
+	player.SetVelocity(vel);
+}
 const std::vector<MergedBlock>& Stage::GetMergedBlocks() const
 {
 	return mergedBlocks_;
