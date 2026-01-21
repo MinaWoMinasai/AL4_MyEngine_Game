@@ -97,6 +97,12 @@ struct AABB {
 	Vector3 max; // 最大値
 };
 
+struct OBB {
+	Vector3 center;
+	Vector3 halfExtents;
+	Vector3 orientation[3]; // 正規化済み
+};
+
 struct alignas(16) Material {
 	Vector4 color;
 	int32_t enableLighting;
@@ -256,4 +262,10 @@ enum TankType {
 
 
 
+};
+
+struct CollisionResult {
+	bool hit = false;     // 衝突しているか
+	Vector3 normal;       // 押し戻し方向（正規化済み）
+	float depth = 0.0f;   // 侵入量（押し戻す距離）
 };

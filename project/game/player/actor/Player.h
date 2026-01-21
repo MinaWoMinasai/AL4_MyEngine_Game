@@ -75,7 +75,7 @@ public:
 	// ワールド座標を取得
 
 	// 半径
-	static inline const float kRadius = 1.0f;
+	static inline const float kRadius = 0.8f;
 
 	Vector3 GetWorldPosition() const override;
 
@@ -120,6 +120,8 @@ public:
 	/// ドローン発射
 	/// </summary>
 	void DroneShoot(BulletManager* BulletManager);
+
+	Sphere GetSphere() const;
 
 private:
 	// ワールド変換データ

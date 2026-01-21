@@ -8,16 +8,17 @@ extern std::mt19937 rng;
 const float pi = 3.14159265f;
 
 // 加算
+Vector2 Add(const Vector2& v1, const Vector2& v2);
 Vector3 Add(const Vector3& v1, const Vector3& v2);
 Vector4 Add(const Vector4& v1, const Vector4& v2);
 
 // 減算
+Vector2 Subtract(const Vector2& v1, const Vector2& v2);
 Vector3 Subtract(const Vector3& v1, const Vector3& v2);
-
-// 減算
 Vector4 Subtract(const Vector4& v1, const Vector4& v2);
 
 // スカラー倍
+Vector2 Multiply(float scalar, const Vector2& v);
 Vector3 Multiply(float scalar, const Vector3& v);
 
 // 内積
@@ -113,6 +114,13 @@ bool IsCollision(const Segment& seg, const Sphere& sphere, float capsuleRadius);
 //* 演算子オーバーロード
 //---------------------------------------------
 
+// Vector2
+inline Vector2 operator+(const Vector2& v1, const Vector2& v2) { return Add(v1, v2); }
+inline Vector2 operator-(const Vector2& v1, const Vector2& v2) { return Subtract(v1, v2); }
+inline Vector2 operator*(const float& s, const Vector2& v) { return Multiply(s, v); }
+inline Vector2 operator*(const Vector2& v, const float& s) { return Multiply(s, v); }
+inline Vector2 operator/(const Vector2& v, const float& s) { return Multiply(1.0f / s, v); }
+
 // Vector3
 inline Vector3 operator+(const Vector3& v1, const Vector3& v2) { return Add(v1, v2); }
 inline Vector3 operator-(const Vector3& v1, const Vector3& v2) { return Subtract(v1, v2); }
@@ -150,3 +158,7 @@ Transform InitWorldTransform();
 Vector3 SlideLeft(const Vector3& dir);
 
 Vector3 SlideRight(const Vector3& dir);
+
+CollisionResult CheckSphereVsOBB(const Sphere& s, const OBB& o);
+
+Vector2 RotateAround();
