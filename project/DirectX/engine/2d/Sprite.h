@@ -1,6 +1,7 @@
 #pragma once
 #include "SpriteCommon.h"
 #include "TextureManager.h"
+#include "SrvManager.h"
 
 class Sprite
 {
@@ -8,6 +9,7 @@ public:
 
 	// 初期化
 	void Initialize(SpriteCommon* spriteCommon, std::string textureFilePath);
+	void Initialize(SpriteCommon* spriteCommon, uint32_t srvIndex, SrvManager* srvManager);
 
 	void Update();
 
@@ -102,5 +104,7 @@ private:
 
 	std::string textureFilePath_;
 
+	bool isRenderTexture_ = false;
+	SrvManager* srvManager_ = nullptr;
 };
 

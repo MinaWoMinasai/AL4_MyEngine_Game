@@ -1,5 +1,8 @@
 #define DIRECTINPUT_VERSION 0x0800
 #include "SceneManager.h"
+#include "RenderTexture.h"
+#include "BloomConstantBuffer.h"
+#include "PostEffect.h"
 
 // Windowsアプリでのエントリーポイント(main関数)
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
@@ -24,6 +27,56 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	std::unique_ptr<SrvManager> srvManager;
 	srvManager = std::make_unique<SrvManager>();
 	srvManager->Initialize(dxCommon.get());
+	
+	std::unique_ptr<RtvManager> rtvManager;
+	rtvManager = std::make_unique<RtvManager>();
+	rtvManager->Initialize(dxCommon.get());
+	
+	std::unique_ptr<RenderTexture> sceneRenderTexture;
+	sceneRenderTexture = std::make_unique<RenderTexture>();
+
+	sceneRenderTexture->Initialize(
+		dxCommon.get(),
+		srvManager.get(),
+		rtvManager.get(),
+		WinApp::kClientWidth,
+		WinApp::kClientHeight
+	);
+	
+	// bloom用CBVの生成
+	std::unique_ptr<BloomConstantBuffer> bloomCB = std::make_unique<BloomConstantBuffer>();
+	bloomCB->Initialize(dxCommon.get());
+
+	// ポストエフェクトの初期化
+	std::unique_ptr<PostEffect> postEffect = std::make_unique<PostEffect>();
+	postEffect->Initialize(dxCommon.get(), bloomCB.get());
+	
+	std::unique_ptr<RenderTexture> bloomRT_A;
+	std::unique_ptr<RenderTexture> bloomRT_B;
+	bloomRT_A = std::make_unique<RenderTexture>();
+	bloomRT_B = std::make_unique<RenderTexture>();
+
+	bloomRT_A->Initialize(
+		dxCommon.get(),
+		srvManager.get(),
+		rtvManager.get(),
+		WinApp::kClientWidth,
+		WinApp::kClientHeight
+	);
+
+	bloomRT_B->Initialize(
+		dxCommon.get(),
+		srvManager.get(),
+		rtvManager.get(),
+		WinApp::kClientWidth,
+		WinApp::kClientHeight
+	);
+	
+	// ブルームパラメータ
+	BloomParam bloomParam{};
+	bloomParam.threshold = 0.0f;
+	bloomParam.intensity = 1.2f;
+	bloomCB->Update(bloomParam);
 
 	// Imguiの初期化
 	IMGUI_CHECKVERSION();
@@ -59,6 +112,19 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	
 	SpriteCommon::GetInstance()->Initialize(dxCommon.get());
 
+	std::unique_ptr<Sprite> sceneRTSprite = std::make_unique<Sprite>();
+	sceneRTSprite->Initialize(
+		SpriteCommon::GetInstance(),
+		sceneRenderTexture->GetSrvIndex(),
+		srvManager.get()
+	);
+
+	sceneRTSprite->SetPosition({ 0.0f, 0.0f });
+	sceneRTSprite->SetSize({
+		(float)WinApp::kClientWidth,
+		(float)WinApp::kClientHeight
+		});
+
 	// キーの初期化
 	Input::GetInstance()->Initialize(WinApp::GetInstance()->GetWindowClass(), WinApp::GetInstance()->GetHwnd());
 	
@@ -92,19 +158,66 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 				}
 			}
 			
+			ImGui::Begin("Bloom");
+			ImGui::DragFloat("Threshold", &bloomParam.threshold, 0.01f, 0.0f, 1.0f);
+			ImGui::DragFloat("Insensity", &bloomParam.intensity, 0.01f);
+			ImGui::End();
+
+			bloomCB->Update(bloomParam);
+
 			sceneManager->Update();
+
+			sceneRTSprite->Update();
 
 			// ImGuiの内部コマンドを生成する
 			ImGui::Render();
-
 			dxCommon->PreDraw();
-
 			srvManager->PreDraw();
+
+			// Scene → SceneRT
+			dxCommon->SetRenderTarget(sceneRenderTexture->GetRTVHandle());
+			dxCommon->ClearRenderTarget(sceneRenderTexture->GetRTVHandle());
+			dxCommon->ClearDepthBuffer();
 
 			sceneManager->Draw();
 
-			SpriteCommon::GetInstance()->PreDraw();
+			// ① BrightPass : SceneRT → bloomRT_A
+			dxCommon->SetRenderTarget(bloomRT_A->GetRTVHandle());
+			dxCommon->ClearRenderTarget(bloomRT_A->GetRTVHandle());
 
+			postEffect->Draw(
+				sceneRenderTexture->GetSrvManager()->GetGPUDescriptorHandle(
+					sceneRenderTexture->GetSrvIndex()),
+				kAdd_Bloom_Extract
+			);
+
+			// ② BlurH : bloomRT_A → bloomRT_B
+			dxCommon->SetRenderTarget(bloomRT_B->GetRTVHandle());
+			dxCommon->ClearRenderTarget(bloomRT_B->GetRTVHandle());
+
+			postEffect->Draw(
+				bloomRT_A->GetSrvManager()->GetGPUDescriptorHandle(
+					bloomRT_A->GetSrvIndex()),
+				kAdd_Bloom_BlurH
+			);
+
+			// ③ BlurV : bloomRT_B → bloomRT_A
+			dxCommon->SetRenderTarget(bloomRT_A->GetRTVHandle());
+			dxCommon->ClearRenderTarget(bloomRT_A->GetRTVHandle());
+
+			postEffect->Draw(
+				bloomRT_B->GetSrvManager()->GetGPUDescriptorHandle(
+					bloomRT_B->GetSrvIndex()),
+				kAdd_Bloom_BlurV
+			);
+
+			// ④ BackBuffer に戻す（今は Blur の結果をそのまま表示）
+			dxCommon->SetBackBuffer();
+			
+			postEffect->DrawComposite(srvManager->GetGPUDescriptorHandle(sceneRenderTexture->GetSrvIndex()), srvManager->GetGPUDescriptorHandle(bloomRT_A->GetSrvIndex()));
+			
+			SpriteCommon::GetInstance()->PreDraw(kNone);
+			//sceneRTSprite->Draw();   // ← SceneRT の SRV を貼る
 			sceneManager->DrawSprite();
 
 			// 実際のcommandListのImGuiの描画コマンドを組む

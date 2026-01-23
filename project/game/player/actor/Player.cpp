@@ -217,13 +217,13 @@ void Player::Update(Camera* viewProjection, Stage& stage, BulletManager* BulletM
 	//stage.ResolvePlayerCollision(*this, Y);
 
 	// X移動
-	pos = GetWorldPosition();
+	Vector3 pos = GetWorldPosition();
 	pos.x += velocity_.x;
 	SetWorldPosition(pos);
 	stage.ResolvePlayerCollision(*this, X);
 
 	// Y移動
-	Vector3 pos = GetWorldPosition();
+	pos = GetWorldPosition();
 	pos.y += velocity_.y;
 	SetWorldPosition(pos);
 	stage.ResolvePlayerCollision(*this, Y);

@@ -223,7 +223,13 @@ enum AxisXYZ {
 
 enum BlendMode {
 	kNone,
-	kAlpha,
+	kAdd,
+
+	kAdd_Bloom_Extract,
+	kAdd_Bloom_BlurH,
+	kAdd_Bloom_BlurV,
+	kAdd_Bloom_Composite,
+
 };
 
 enum Phase {
@@ -268,4 +274,11 @@ struct CollisionResult {
 	bool hit = false;     // 衝突しているか
 	Vector3 normal;       // 押し戻し方向（正規化済み）
 	float depth = 0.0f;   // 侵入量（押し戻す距離）
+}; 
+
+struct BloomParam
+{
+	float threshold;
+	float intensity;
+	float padding[2]; // 16byte合わせ
 };
