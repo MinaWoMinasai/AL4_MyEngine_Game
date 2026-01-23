@@ -16,7 +16,7 @@ void Stage::Update() {
 	//if (dt_ >= 0.8f) {
 	//	return;
 	//}
-
+	//
 	//for (auto& line : blocks_) {
 	//	for (Block& block : line) {
 	//		if (!block.isActive) continue;
@@ -43,12 +43,12 @@ void Stage::Update() {
 	//		block.obb.center.y = orbitCenter.y + rotated.y;
 	//		block.obb.center.z = block.originalPos.z;
 	//		float rad = block.orbitAngle;
-
+	//
 	//		// 公転に追従する回転（Z軸）
 	//		block.obb.orientation[0] = { cosf(rad), sinf(rad), 0 };
 	//		block.obb.orientation[1] = { -sinf(rad), cosf(rad), 0 };
 	//		block.obb.orientation[2] = { 0, 0, 1 };
-
+	//
 	//		// 見た目も追従
 	//		block.worldTransform.translate = block.obb.center;
 	//		block.object->SetTransform(block.worldTransform);

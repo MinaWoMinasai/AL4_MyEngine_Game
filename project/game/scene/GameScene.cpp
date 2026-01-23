@@ -94,7 +94,7 @@ void GameScene::Update() {
 
 	player_->Update(camera.get(), *stage_, bulletManager_.get());
 	
-	//enemy_->Update();
+	enemy_->Update();
 
 	bulletManager_->Update();
 
@@ -102,7 +102,7 @@ void GameScene::Update() {
 	stage_->ResolveBulletsCollision(bulletManager_->GetBulletPtrs());
     
 	// 衝突マネージャの更新
-	//collisionManager_->CheckAllCollisions(player_.get(), enemy_.get(), bulletManager_.get());
+	collisionManager_->CheckAllCollisions(player_.get(), enemy_.get(), bulletManager_.get());
 
 	switch (phase_) {
 	case Phase::kFadeIn:
@@ -165,7 +165,7 @@ void GameScene::Draw() {
 
 	player_->Draw();
 
-	//enemy_->Draw();
+	enemy_->Draw();
 
 	bulletManager_->Draw();
 
