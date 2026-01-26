@@ -181,11 +181,12 @@ struct AccelerationField {
 	Vector3 acceleration; // 加速度
 	AABB area; // 効果範囲
 };
-//
-//struct alignas(16) Camera {
-//	Vector3 worldPosition;
-//	float pad; // 16バイトアラインメント対策
-//};
+
+struct CameraData
+{
+	Vector3 worldPosition;
+	float padding; // 16byte アラインメント用（重要）
+};
 
 enum class FireworkState {
 	Rise,
@@ -229,7 +230,7 @@ enum BlendMode {
 	kAdd_Bloom_BlurH,
 	kAdd_Bloom_BlurV,
 	kAdd_Bloom_Composite,
-
+	kAdd_Bloom_Downsample,
 };
 
 enum Phase {

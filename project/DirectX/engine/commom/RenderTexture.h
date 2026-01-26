@@ -17,6 +17,8 @@ public:
 
     SrvManager* GetSrvManager() { return srvManager_; }
 
+    ID3D12Resource* GetResource() { return resource_.Get(); }
+
 private:
     Microsoft::WRL::ComPtr<ID3D12Resource> resource_;
     
