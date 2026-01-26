@@ -8,19 +8,18 @@ GameScene::~GameScene() {
 
 void GameScene::Initialize() {
 
+	worldTransform_ = InitWorldTransform();
+
 	input_ = Input::GetInstance();
 
 	debugCamera = std::make_unique<DebugCamera>();
 
 	camera = std::make_unique<Camera>();
 
-	camera->SetTranslate(Vector3(17.0f, 21.0f, -80.0f));
+	camera->SetTranslate(Vector3(0.0f, 0.0f, -80.0f));
 
 	Object3dCommon::GetInstance()->SetDefaultCamera(camera.get());
 	Object3dCommon::GetInstance()->SetDebugDefaultCamera(debugCamera.get());
-
-	object3d = std::make_unique<Object3d>();
-	object3d->Initialize();
 
 	enemyObject_ = std::make_unique<Object3d>();
 	enemyObject_->Initialize();
@@ -31,10 +30,26 @@ void GameScene::Initialize() {
 	playerObject_ = std::make_unique<Object3d>();
 	playerObject_->Initialize();
 
-	object3d->SetModel("teapot.obj");
+	ballObj_ = std::make_unique<Object3d>();
+	ballObj_->Initialize();
+	ballObj_->SetTranslate(Vector3(20.0f, 0.0f, 0.0f));
+	ballObj_->Update();
+
+	ball_ = std::make_unique<Object3d>();
+	ball_->Initialize();
+	// ライティングを有効か
+	ball_->SetLighting(true);
+	ball_->SetTranslate(Vector3(-20.0f, 0.0f, 0.0f));
+	ball_->Update();
+
+
 	enemyObject_->SetModel("enemy.obj");
 	object3d3->SetModel("plane.obj");
 	playerObject_->SetModel("player.obj");
+	ballObj_->SetModel("bloomBlock.obj");
+	ballObj_->SetColor(Vector4(0.06f, 0.45f, 0.08f, 1.0f));
+	
+	ball_->SetModel("ball.obj");
 
 	stage_ = std::make_unique<Stage>();
 	stage_->Initialize();
@@ -78,107 +93,128 @@ void GameScene::Initialize() {
 
 void GameScene::Update() {
 
-	ImGui::Begin("FPS");
-	ImGui::Text("FPS: %.2f", ImGui::GetIO().Framerate);
-	ImGui::End();
-
-	worldTransform_.translate.y += 0.01f;
-
-	object3d->SetTranslate(worldTransform_.translate);
-	object3d->Update();
+	//ImGui::Begin("FPS");
+	//ImGui::Text("FPS: %.2f", ImGui::GetIO().Framerate);
+	//ImGui::End();
 
 	camera->Update();
 	debugCamera->Update(input_->GetMouseState(), input_->GetKey(), input_->GetLeftStick());
 
-	stage_->Update();
+	ImGui::Begin("Lighting");
+	ImGui::DragFloat3("direction", &direction.x, 0.01f);
+	ImGui::DragFloat("insensity", &insensity, 0.01f);
+	ImGui::DragFloat("shininess", &shininess, 0.01f);
 
-	player_->Update(camera.get(), *stage_, bulletManager_.get());
-	
-	enemy_->Update();
+	ImGui::End();
+	direction = Normalize(direction);
+	ball_->SetDirectionalLightDirection(direction);
+	ball_->SetInsensity(insensity);
+	ball_->SetShininess(shininess);
 
-	bulletManager_->Update();
+	//worldTransform_.translate.y += 0.01f;
 
-	// 弾とブロックの当たり判定
-	stage_->ResolveBulletsCollision(bulletManager_->GetBulletPtrs());
-    
-	// 衝突マネージャの更新
-	collisionManager_->CheckAllCollisions(player_.get(), enemy_.get(), bulletManager_.get());
 
-	switch (phase_) {
-	case Phase::kFadeIn:
-		fade_->Update();
+	//ballObj_->SetTranslate(worldTransform_.translate);
+	ballObj_->Update();
+	ball_->Update();
 
-		if (fade_->IsFinished()) {
-			phase_ = Phase::kMain;
-		}
-		break;
-	case Phase::kMain:
-		if (input_->IsTrigger(input_->GetKey()[DIK_ESCAPE], input_->GetPreKey()[DIK_ESCAPE])) {
-			fade_->Start(Fade::Status::FadeOut, 1.0f);
-			phase_ = Phase::kFadeOut;
-		}
-
-		if (player_->isFinished()) {
-			fade_->Start(Fade::Status::FadeOut, 1.0f);
-			phase_ = Phase::kFadeOut;
-		}
-
-		if (enemy_->isFinished()) {
-			fade_->Start(Fade::Status::FadeOut, 1.0f);
-			phase_ = Phase::kFadeOut;
-		}
-
-		break;
-	case Phase::kFadeOut:
-		fade_->Update();
-		if (fade_->IsFinished()) {
-			finished_ = true;
-		}
-		break;
-	}
-
-	shotGide->Update();
-	wasdGide->Update();
-	toTitleGide->Update();
-
-	if (cameraFollow_) {
-
-		// プレイヤーが死んでいる場合カメラをプレイヤーに合わせる
-		if (player_->IsDead()) {
-			Vector3 playerPos = player_->GetWorldPosition();
-			camera->SetTranslate({ playerPos.x, playerPos.y, -50.0f });
-			cameraFollow_ = false;
-		}
-
-		// 敵が死んでいる場合カメラを敵に合わせる
-		if (enemy_->IsDead()) {
-			Vector3 enemyPos = enemy_->GetWorldPosition();
-			camera->SetTranslate({ enemyPos.x, enemyPos.y, -50.0f });
-			cameraFollow_ = false;
-		}
-	}
+	//stage_->Update();
+	//
+	//player_->Update(camera.get(), *stage_, bulletManager_.get());
+	//
+	//enemy_->Update();
+	//
+	//bulletManager_->Update();
+	//
+	//// 弾とブロックの当たり判定
+	//stage_->ResolveBulletsCollision(bulletManager_->GetBulletPtrs());
+    //
+	//// 衝突マネージャの更新
+	////collisionManager_->CheckAllCollisions(player_.get(), enemy_.get(), bulletManager_.get());
+	//
+	//switch (phase_) {
+	//case Phase::kFadeIn:
+	//	fade_->Update();
+	//
+	//	if (fade_->IsFinished()) {
+	//		phase_ = Phase::kMain;
+	//	}
+	//	break;
+	//case Phase::kMain:
+	//	if (input_->IsTrigger(input_->GetKey()[DIK_ESCAPE], input_->GetPreKey()[DIK_ESCAPE])) {
+	//		fade_->Start(Fade::Status::FadeOut, 1.0f);
+	//		phase_ = Phase::kFadeOut;
+	//	}
+	//
+	//	if (player_->isFinished()) {
+	//		fade_->Start(Fade::Status::FadeOut, 1.0f);
+	//		phase_ = Phase::kFadeOut;
+	//	}
+	//
+	//	if (enemy_->isFinished()) {
+	//		fade_->Start(Fade::Status::FadeOut, 1.0f);
+	//		phase_ = Phase::kFadeOut;
+	//	}
+	//
+	//	break;
+	//case Phase::kFadeOut:
+	//	fade_->Update();
+	//	if (fade_->IsFinished()) {
+	//		finished_ = true;
+	//	}
+	//	break;
+	//}
+	//
+	//shotGide->Update();
+	//wasdGide->Update();
+	//toTitleGide->Update();
+	//
+	//if (cameraFollow_) {
+	//
+	//	// プレイヤーが死んでいる場合カメラをプレイヤーに合わせる
+	//	if (player_->IsDead()) {
+	//		Vector3 playerPos = player_->GetWorldPosition();
+	//		camera->SetTranslate({ playerPos.x, playerPos.y, -50.0f });
+	//		cameraFollow_ = false;
+	//	}
+	//
+	//	// 敵が死んでいる場合カメラを敵に合わせる
+	//	if (enemy_->IsDead()) {
+	//		Vector3 enemyPos = enemy_->GetWorldPosition();
+	//		camera->SetTranslate({ enemyPos.x, enemyPos.y, -50.0f });
+	//		cameraFollow_ = false;
+	//	}
+	//}
 }
 
 void GameScene::Draw() {
 
-	Object3dCommon::GetInstance()->PreDraw();
+	Object3dCommon::GetInstance()->PreDraw(kNone);
 
-	player_->Draw();
+	//player_->Draw();
+	//
+	//enemy_->Draw();
+	//
+	//bulletManager_->Draw();
+	//
+	//stage_->Draw();
+	ball_->Draw();
+}
 
-	enemy_->Draw();
+void GameScene::DrawPostEffect3D() {
 
-	bulletManager_->Draw();
+	Object3dCommon::GetInstance()->PreDraw(kNone);
 
-	stage_->Draw();
-
+	ballObj_->Draw();
+	
 }
 
 void GameScene::DrawSprite() {
 
-	enemy_->DrawSprite();
-	player_->DrawSprite();
-	shotGide->Draw();
-	wasdGide->Draw();
-	toTitleGide->Draw();
-	fade_->Draw();
+	//enemy_->DrawSprite();
+	//player_->DrawSprite();
+	//shotGide->Draw();
+	//wasdGide->Draw();
+	//toTitleGide->Draw();
+	//fade_->Draw();
 }

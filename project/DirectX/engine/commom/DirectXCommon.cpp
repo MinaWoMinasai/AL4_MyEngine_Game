@@ -25,8 +25,8 @@ void DirectXCommon::Initialize(WinApp* winApp)
 	CreateSwapChainRtv();
 	InitializeDepthStencilView();
 	InitializeFence();
-	InitializeViewport();
-	InitializeSissorRect();
+	//InitializeViewport();
+	//InitializeSissorRect();
 	CreateDXCCompiler();
 	InitializeImGui();
 
@@ -60,10 +60,7 @@ void DirectXCommon::PreDraw()
 	list_->ClearRenderTargetView(rtvHandles_[backBufferIndex], clearColor, 0, nullptr);
 	// 指定して深度で画面全体をクリアする
 	list_->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
-
-	list_->RSSetViewports(1, &viewportRect_); // Viewportを設定
-	list_->RSSetScissorRects(1, &scissorRect_); // Scissorを設定
-	
+	SetViewport(WinApp::kClientWidth, WinApp::kClientHeight);
 }
 
 void DirectXCommon::PostDraw()
@@ -113,6 +110,12 @@ void DirectXCommon::CreateShaderCommon(PSO& pso, BlendMode blendMode)
 
 			pso.vsFilePath_ = L"resources/shaders/FullScreen.VS.hlsl";
 			pso.psFilePath_ = L"resources/shaders/BloomExtract.PS.hlsl";
+
+			break;
+		case Bloom_Downsample:
+
+			pso.vsFilePath_ = L"resources/shaders/FullScreen.VS.hlsl";
+			pso.psFilePath_ = L"resources/shaders/BloomDownsample.PS.hlsl";
 
 			break;
 		case Bloom_BlurH:
@@ -200,6 +203,8 @@ void DirectXCommon::CreateShader()
 	blurVPSO.postEffectType_ = Bloom_BlurV;
 	conpositePSO.shaderType_ = PostEffect;
 	conpositePSO.postEffectType_ = Bloom_Composite;
+	downsamplePSO.shaderType_ = PostEffect;
+	downsamplePSO.postEffectType_ = Bloom_Downsample;
 
 	CreateShaderCommon(objectPSO_None, kNone);
 	CreateShaderCommon(objectPSO_Alpha, kAdd);
@@ -208,6 +213,7 @@ void DirectXCommon::CreateShader()
 	CreateShaderCommon(blurHPSO, kNone);
 	CreateShaderCommon(blurVPSO, kNone);
 	CreateShaderCommon(conpositePSO, kAdd);
+	CreateShaderCommon(downsamplePSO, kNone);
 }
 
 void DirectXCommon::CreateGraphics()
@@ -700,6 +706,25 @@ void DirectXCommon::SetBackBuffer() {
 		&dsv
 	);
 }
+
+void DirectXCommon::SetViewport(uint32_t width, uint32_t height)
+{
+	viewportRect_.TopLeftX = 0.0f;
+	viewportRect_.TopLeftY = 0.0f;
+	viewportRect_.Width = FLOAT(width);
+	viewportRect_.Height = FLOAT(height);
+	viewportRect_.MinDepth = 0.0f;
+	viewportRect_.MaxDepth = 1.0f;
+
+	scissorRect_.left = 0;
+	scissorRect_.top = 0;
+	scissorRect_.right = LONG(width);
+	scissorRect_.bottom = LONG(height);
+
+	list_->RSSetViewports(1, &viewportRect_);
+	list_->RSSetScissorRects(1, &scissorRect_);
+}
+
 D3D12_CPU_DESCRIPTOR_HANDLE DirectXCommon::GetDescriptorCPUHandle(Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descriptorHeap, uint32_t descriptorSize, uint32_t index)
 {
 

@@ -56,6 +56,7 @@ public:
 
 	enum PostEffectType {
 		Bloom_Extract,
+		Bloom_Downsample,
 		Bloom_BlurH,
 		Bloom_BlurV,
 		Bloom_Composite,
@@ -148,7 +149,11 @@ public:
 		case kAdd_Bloom_Extract:
 			return bloomPSO;
 			break;
-
+		
+		case kAdd_Bloom_Downsample:
+			return downsamplePSO;
+			break;
+		
 		case kAdd_Bloom_BlurH:
 			return blurHPSO;
 			break;
@@ -193,6 +198,7 @@ public:
 
 	void SetBackBuffer();
 
+	void SetViewport(uint32_t width, uint32_t height);
 private:
 
 	/// <summary>
@@ -309,6 +315,7 @@ private:
 	PSO objectPSO_Alpha;
 	PSO psoParticle_;
 	PSO bloomPSO;
+	PSO downsamplePSO;
 	PSO blurHPSO;
 	PSO blurVPSO;
 	PSO conpositePSO;

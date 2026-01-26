@@ -28,7 +28,6 @@ void PostEffect::DrawComposite( D3D12_GPU_DESCRIPTOR_HANDLE sceneSRV, D3D12_GPU_
     dxCommon_->GetList()->SetGraphicsRootConstantBufferView(0, bloomCB_->GetGPUAddress());
 
     dxCommon_->GetList()->SetGraphicsRootDescriptorTable(1, sceneSRV);
-    //dxCommon_->GetList()->SetGraphicsRootDescriptorTable(2, bloomSRV);
 
     dxCommon_->GetList()->DrawInstanced(3, 1, 0, 0);
 }

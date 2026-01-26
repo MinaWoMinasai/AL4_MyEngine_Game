@@ -16,18 +16,28 @@ struct PSInput
 
 float4 main(PSInput input) : SV_TARGET
 {
-    // SceneRT から色を取得
     float3 color = sceneTex.Sample(samp, input.uv).rgb;
 
-    // 輝度を計算（人間の目に近い）
+    // 1. 輝度を計算
     float luminance = dot(color, float3(0.2126, 0.7152, 0.0722));
+    
+    // 2. 完全に真っ黒な部分での除算を防ぐための極小値
+    float epsilon = 0.0001f;
 
-    // threshold 未満なら黒
-    if (luminance < threshold)
-    {
-        return float4(0, 0, 0, 1);
-    }
+    // 【ここが修正ポイント】
+    // step(0か1)ではなく、「閾値を超えた分だけ」を滑らかに取り出す
+    // Soft Thresholding という手法の簡易版です
+    
+    // 輝度から閾値を引いて、0未満なら0にする（マイナスにはしない）
+    float contribution = max(0.0f, luminance - threshold);
+    
+    // 元の明るさに応じて正規化（色が変に白飛びするのを防ぐ）
+    contribution /= max(luminance, epsilon);
 
-    // 明るい部分だけ抽出
-    return float4(color * intensity, 1);
+    // 3. 抽出した明るさを元の色に掛ける
+    // これにより、閾値ギリギリのピクセルは「うっすら」光り、
+    // 閾値を大きく超えたピクセルは「強く」光るようになります。
+    float3 extractColor = color * contribution;
+
+    return float4(extractColor, 1.0f);
 }

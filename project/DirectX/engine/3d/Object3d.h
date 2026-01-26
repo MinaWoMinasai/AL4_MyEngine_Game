@@ -38,6 +38,19 @@ public:
 		materialData_->color = color;
 	}
 
+	void SetLighting(bool enable) {
+		materialData_->enableLighting = enable;
+	}
+	void SetDirectionalLightDirection(const Vector3& direction) {
+		directionalLightData->direction = Normalize(direction);
+	}
+	void SetShininess(float shininess) {
+		materialData_->shininess = shininess;
+	}
+	void SetInsensity(float insensity) {
+		directionalLightData->intensity = insensity;
+	}
+
 private:
 
 	Object3dCommon* object3dCommon_;
@@ -61,6 +74,7 @@ private:
 	Camera* camera_ = nullptr;
 	DebugCamera* debugCamera_ = nullptr;
 
-
+	Microsoft::WRL::ComPtr<ID3D12Resource> cameraResource_;
+	CameraData* cameraData_ = nullptr;
 };
 

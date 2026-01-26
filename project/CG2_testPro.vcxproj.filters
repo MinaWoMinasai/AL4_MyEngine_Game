@@ -232,6 +232,7 @@
     <FxCompile Include="resources\shaders\BloomBlurH.PS.hlsl" />
     <FxCompile Include="resources\shaders\BloomBlurV.PS.hlsl" />
     <FxCompile Include="resources\shaders\Composite.PS.hlsl" />
+    <FxCompile Include="resources\shaders\BloomDownsample.PS.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="externals\imgui\imconfig.h">
