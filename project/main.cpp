@@ -92,8 +92,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	
 	// ブルームパラメータ
 	BloomParam bloomParam{};
-	bloomParam.threshold = 0.0f;
-	bloomParam.intensity = 1.2f;
+	bloomParam.threshold = 0.1f;
+	bloomParam.intensity = 0.9f;
 	bloomCB->Update(bloomParam);
 
 	// Imguiの初期化
@@ -115,6 +115,18 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	//　objファイルからモデルを読み込む
 	ModelManager::GetInstance()->LoadModel("bloomBlock.obj");
 	ModelManager::GetInstance()->LoadModel("ball.obj");
+	ModelManager::GetInstance()->LoadModel("cube.obj");
+	ModelManager::GetInstance()->LoadModel("cubeDamage.obj");
+	ModelManager::GetInstance()->LoadModel("player.obj");
+	ModelManager::GetInstance()->LoadModel("playerBullet.obj");
+	ModelManager::GetInstance()->LoadModel("enemy.obj");
+	ModelManager::GetInstance()->LoadModel("enemyBullet.obj");
+	ModelManager::GetInstance()->LoadModel("playerParticle.obj");
+	ModelManager::GetInstance()->LoadModel("enemyParticle.obj");
+	ModelManager::GetInstance()->LoadModel("playerHPBar.obj");
+	ModelManager::GetInstance()->LoadModel("playerHPBarGreen.obj");
+	ModelManager::GetInstance()->LoadModel("playerHPBarLong.obj");
+	ModelManager::GetInstance()->LoadModel("playerHPBarGreenLong.obj");
 
 	Object3dCommon::GetInstance()->Initialize(dxCommon.get());
 	
@@ -123,12 +135,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	// キーの初期化
 	Input::GetInstance()->Initialize(WinApp::GetInstance()->GetWindowClass(), WinApp::GetInstance()->GetHwnd());
 
-	//std::unique_ptr<SceneManager> sceneManager;
-	//sceneManager = std::make_unique<SceneManager>();
-	//sceneManager->Initialize();
-
-	std::unique_ptr<GameScene> sceneManager;
-	sceneManager = std::make_unique<GameScene>();
+	std::unique_ptr<SceneManager> sceneManager;
+	sceneManager = std::make_unique<SceneManager>();
 	sceneManager->Initialize();
 
 	MSG msg{};
@@ -149,21 +157,18 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			ImGui_ImplWin32_NewFrame();
 			ImGui::NewFrame();
 
-			//if (input->IsPress(input->GetKey()[DIK_LSHIFT]) && input->IsTrigger(input->GetKey()[DIK_D], input->GetPreKey()[DIK_D])) {
-			//	if (Object3dCommon::GetInstance()->GetIsDebugCamera()) {
-			//		Object3dCommon::GetInstance()->SetIsDebugCamera(false);
-			//	} else {
+			if (input->IsPress(input->GetKey()[DIK_LSHIFT]) && input->IsTrigger(input->GetKey()[DIK_D], input->GetPreKey()[DIK_D])) {
+				if (Object3dCommon::GetInstance()->GetIsDebugCamera()) {
+					Object3dCommon::GetInstance()->SetIsDebugCamera(false);
+				} else {
 					Object3dCommon::GetInstance()->SetIsDebugCamera(true);
-			//	}
-			//}
+				}
+			}
 			
-			ImGui::Text("--How to operate DebugCamera--\nMiddle mouse button hold + drag : Look around\nShift key hold + middle mouse button hold + drag : translation\nMiddle mouse button + wheel : perspective");
-			
-			ImGui::Begin("BloomBlock");
-			ImGui::DragFloat("Threshold", &bloomParam.threshold, 0.01f, 0.0f, 1.0f);
-			ImGui::DragFloat("Insensity", &bloomParam.intensity, 0.01f);
-			ImGui::ColorEdit4("color", &sceneManager->GetBallObj()->GetColor().x);
-			ImGui::End();
+			//ImGui::Begin("BloomBlock");
+			//ImGui::DragFloat("Threshold", &bloomParam.threshold, 0.01f, 0.0f, 1.0f);
+			//ImGui::DragFloat("Insensity", &bloomParam.intensity, 0.01f);
+			//ImGui::End();
 
 			bloomCB->Update(bloomParam);
 
@@ -186,6 +191,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			dxCommon->ClearDepthBuffer();
 
 			sceneManager->DrawPostEffect3D(); // 3Dオブジェクト描画
+
+			SpriteCommon::GetInstance()->PreDraw(kNone);
+			sceneManager->DrawSprite();
 
 			// 描き終わったので RenderTarget -> SRV (次の工程で読むため) に戻す
 			TransitionResource(dxCommon.get(), sceneRenderTexture->GetResource(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
@@ -280,17 +288,14 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 				srvManager->GetGPUDescriptorHandle(sceneRenderTexture->GetSrvIndex()),
 				srvManager->GetGPUDescriptorHandle(bloomRT_A->GetSrvIndex())
 			);
-			//sceneManager->Draw();
+			sceneManager->Draw();
 			
-			SpriteCommon::GetInstance()->PreDraw(kNone);
-			sceneManager->DrawSprite();
-
 			// 実際のcommandListのImGuiの描画コマンドを組む
 			ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), dxCommon->GetList().Get());
 
 			dxCommon->PostDraw();
 
-			//sceneManager->ChangeScene();
+			sceneManager->ChangeScene();
 		}
 	}
 

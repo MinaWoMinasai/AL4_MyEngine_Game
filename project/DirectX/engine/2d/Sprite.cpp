@@ -71,7 +71,7 @@ void Sprite::Initialize(SpriteCommon* spriteCommon, std::string textureFilePath)
 
 void Sprite::Initialize(SpriteCommon* spriteCommon, uint32_t srvIndex, SrvManager* srvManager) {
 	spriteCommon_ = spriteCommon;
-	textureIndex = srvIndex; 
+	textureIndex = srvIndex;
 	isRenderTexture_ = true;
 	srvManager_ = srvManager;
 
@@ -160,7 +160,7 @@ void Sprite::Update()
 	vertexData[1].position = { left, top, 0.0f, 1.0f };
 	vertexData[2].position = { right, bottom, 0.0f, 1.0f };
 	vertexData[3].position = { right, top, 0.0f, 1.0f };
-	
+
 	if (!isRenderTexture_) {
 		const DirectX::TexMetadata& metaData =
 			TextureManager::GetInstance()->GetMetaData(textureFilePath_);
@@ -181,7 +181,7 @@ void Sprite::Update()
 		vertexData[2].texcoord = { 1.0f, 1.0f };
 		vertexData[3].texcoord = { 1.0f, 0.0f };
 	}
-	
+
 	// 用のWorldViewProjectionMatrixを作る
 	Matrix4x4 worldMatrix = MakeAffineMatrix(transform.scale, transform.rotate, transform.translate);
 	Matrix4x4 viewMatrix = MakeIdentity4x4();
@@ -233,4 +233,11 @@ void Sprite::AdjustTextureSize()
 
 void Sprite::SetBlendMode(BlendMode blendMode) {
 	spriteCommon_->PreDraw(blendMode);
+}
+
+bool Sprite::IsHovered(const Vector2& mousePos) const
+{
+
+	return (mousePos.x >= position_.x && mousePos.x <= position_.x + size_.x &&
+		mousePos.y >= position_.y && mousePos.y <= position_.y + size_.y);
 }

@@ -38,6 +38,10 @@ public:
 		materialData_->color = color;
 	}
 
+	void SetAlpha(const float& color) {
+		materialData_->color.w = color;
+	}
+
 	void SetLighting(bool enable) {
 		materialData_->enableLighting = enable;
 	}

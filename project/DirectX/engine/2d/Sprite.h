@@ -32,6 +32,8 @@ public:
 	Vector4& GetColor() { return materialData->color; }
 	void SetColor(const Vector4& color) { materialData->color = color; }
 
+	void SetAlpha(const float alpha){ materialData->color.w = alpha; }
+
 	Vector2& GetSize() { return size_; }
 	void SetSize(const Vector2& size) { size_ = size; }
 
@@ -54,6 +56,8 @@ public:
 	void SetTextureSize(const Vector2& textureSize) { textureSize_ = textureSize; }
 
 	void SetBlendMode(BlendMode blendMode);
+	
+	bool IsHovered(const Vector2& mousePos) const;
 
 private:
 
