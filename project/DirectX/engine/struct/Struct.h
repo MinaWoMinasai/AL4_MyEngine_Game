@@ -258,19 +258,6 @@ enum BulletOwner {
 	kEnemy
 };
 
-enum TankType {
-	SingleShot,
-	DoubleShot,
-	TripleShot,
-
-	Shotgun,
-
-	ShotDrone,
-
-
-
-};
-
 struct CollisionResult {
 	bool hit = false;     // 衝突しているか
 	Vector3 normal;       // 押し戻し方向（正規化済み）

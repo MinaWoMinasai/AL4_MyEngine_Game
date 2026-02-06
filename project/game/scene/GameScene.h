@@ -16,6 +16,7 @@
 #include "Fade.h"
 #include "Stage.h"
 #include "BulletManager.h"
+#include "EnemyManager.h"
 
 // ゲームシーン
 class GameScene {
@@ -85,6 +86,9 @@ private:
 	// 敵
 	std::unique_ptr<Enemy> enemy_;
 
+	// 経験値敵
+	//std::unique_ptr<EnemyManager> enemyManager_;
+
 	// ステージ
 	std::unique_ptr<Stage> stage_;
 
@@ -102,6 +106,7 @@ private:
 
 	std::unique_ptr<Sprite> shotGide;
 	std::unique_ptr<Sprite> wasdGide;
+	std::unique_ptr<Sprite> dashGide;
 	std::unique_ptr<Sprite> toTitleGide;
 
 	// カメラ合わせフラグ
@@ -110,4 +115,7 @@ private:
 	Vector3 direction = { 0.0f, -1.0f, 0.0f };
 	float insensity = 1.0f;
 	float shininess = 10.0f;
+
+	float timeScale_ = 1.0f; // 1.0 が通常、0.2 なら 5倍スロー
+
 };
